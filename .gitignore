@@ -1,0 +1,10 @@
+ # Derlenmiş class dosyaları (Gereksiz)
+bin/
+*.class
+
+# Eclipse Metadata dosyaları
+.metadata/
+
+# İşletim sistemi dosyaları
+.DS_Store
+Thumbs.db
