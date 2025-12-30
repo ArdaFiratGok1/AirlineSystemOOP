@@ -8,6 +8,9 @@ import ReservationAndTicketingModule.Passenger;
 import ReservationAndTicketingModule.Reservation;
 
 import java.util.ArrayList;
+import ReservationAndTicketingModule.*;
+import FlightManagementModule.*;
+
 
 public class ReservationManager {
     private List<Reservation> reservations;
