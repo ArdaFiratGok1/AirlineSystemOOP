@@ -1,6 +1,8 @@
 package ReservationAndTicketingModule;
 
-public class Passenger {
+import java.io.Serializable;
+
+public class Passenger implements Serializable{
 
 	private String passengerID;
 	private String name;

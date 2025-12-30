@@ -1,6 +1,8 @@
 package ReservationAndTicketingModule;
 
-public class Ticket {
+import java.io.Serializable;
+
+public class Ticket implements Serializable{
 	private String ticketID;
 	private Reservation reservation;
 	private double price;

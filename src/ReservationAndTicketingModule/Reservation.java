@@ -1,8 +1,10 @@
 package ReservationAndTicketingModule;
 
+import java.io.Serializable;
+
 import FlightManagementModule.*;
 
-public class Reservation {
+public class Reservation implements Serializable {
 
 	private String reservationCode;
 	private Flight flight;

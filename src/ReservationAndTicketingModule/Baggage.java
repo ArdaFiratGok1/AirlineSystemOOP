@@ -1,6 +1,7 @@
 package ReservationAndTicketingModule;
+import java.io.Serializable;
 
-public class Baggage {
+public class Baggage implements Serializable{
 	private double weight;
 	private String ticketID;
 

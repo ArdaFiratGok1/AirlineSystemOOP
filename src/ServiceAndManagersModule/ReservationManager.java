@@ -1,6 +1,12 @@
 package ServiceAndManagersModule;
 
 import java.util.List;
+
+import FlightManagementModule.Flight;
+import FlightManagementModule.Seat;
+import ReservationAndTicketingModule.Passenger;
+import ReservationAndTicketingModule.Reservation;
+
 import java.util.ArrayList;
 
 public class ReservationManager {
