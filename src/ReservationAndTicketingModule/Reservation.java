@@ -3,6 +3,7 @@ package ReservationAndTicketingModule;
 import java.io.Serializable;
 
 import FlightManagementModule.*;
+//Tarih kutuphanesi eklenecek
 
 public class Reservation implements Serializable {
 
@@ -16,7 +17,6 @@ public class Reservation implements Serializable {
 	
 	public Reservation(String reservationCode, Flight flight, Plane plane, Seat seat, String dateOfReservation, boolean isActive) 
 	{
-		super();
 		this.reservationCode = reservationCode;
 		this.flight = flight;
 		this.plane = plane;
