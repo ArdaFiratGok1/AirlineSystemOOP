@@ -2,6 +2,9 @@ package ServiceAndManagersModule;
 
 import java.util.List;
 import java.util.ArrayList;
+import ReservationAndTicketingModule.*;
+import FlightManagementModule.*;
+
 
 public class ReservationManager {
     private List<Reservation> reservations;
