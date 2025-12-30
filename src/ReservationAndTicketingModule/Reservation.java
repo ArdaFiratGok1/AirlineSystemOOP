@@ -1,6 +1,7 @@
 package ReservationAndTicketingModule;
 
 import FlightManagementModule.*;
+//Tarih kutuphanesi eklenecek
 
 public class Reservation {
 
@@ -14,7 +15,6 @@ public class Reservation {
 	
 	public Reservation(String reservationCode, Flight flight, Plane plane, Seat seat, String dateOfReservation, boolean isActive) 
 	{
-		super();
 		this.reservationCode = reservationCode;
 		this.flight = flight;
 		this.plane = plane;
