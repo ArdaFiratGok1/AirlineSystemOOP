@@ -30,8 +30,8 @@ public class ReservationManager {
     /**
      * Yeni bir rezervasyon oluşturur, koltuğu kapatır ve dosyaya kaydeder.
      */
+    
     public Reservation makeReservation(Flight f, Passenger p, Seat s) {
-        // 1. Validasyon: Koltuk zaten dolu mu?
         if (s.isReserved()) {
             System.out.println("Hata: Seçilen koltuk (" + s.getSeatNum() + ") zaten dolu!");
             return null;

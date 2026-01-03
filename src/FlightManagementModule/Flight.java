@@ -53,7 +53,39 @@ public class Flight implements Serializable {
                 flightNum, routeInfo, date, hour, duration);
     }
 
-    /**
+    public String getDuration() {
+		return duration;
+	}
+
+	public void setDuration(String duration) {
+		this.duration = duration;
+	}
+
+	public void setFlightNum(String flightNum) {
+		this.flightNum = flightNum;
+	}
+
+	public void setRoute(Route route) {
+		this.route = route;
+	}
+
+	public void setDate(String date) {
+		this.date = date;
+	}
+
+	public void setHour(String hour) {
+		this.hour = hour;
+	}
+	
+	public String getTime() {
+        return hour;
+    }
+
+	public void setPlane(Plane plane) {
+		this.plane = plane;
+	}
+
+	/**
      * Terminalde nesneyi yazdırınca (System.out.println) anlamlı çıktı verir.
      */
     @Override

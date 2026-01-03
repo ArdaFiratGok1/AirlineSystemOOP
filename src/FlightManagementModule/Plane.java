@@ -49,7 +49,27 @@ public class Plane implements Serializable {
         }
     }
 
-    /**
+    public String getPlaneModel() {
+		return planeModel;
+	}
+
+	public void setPlaneModel(String planeModel) {
+		this.planeModel = planeModel;
+	}
+
+	public void setPlaneID(String planeID) {
+		this.planeID = planeID;
+	}
+
+	public void setCapacity(int capacity) {
+		this.capacity = capacity;
+	}
+
+	public void setSeats(Map<String, Seat> seats) {
+		this.seats = seats;
+	}
+
+	/**
      * Array döngüsü yerine doğrudan Key ile erişim. Çok daha hızlıdır.
      */
     public Seat getSeat(String seatNum) {
