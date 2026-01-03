@@ -17,6 +17,7 @@ public class FileManager {
     // Dosyadan veriyi okur ve Object olarak döndürür
     public static Object loadData(String fileName) {
         File file = new File(fileName);
+        
         // Eğer dosya henüz yoksa (ilk çalıştırış), null döndür
         if (!file.exists()) {
             return null;

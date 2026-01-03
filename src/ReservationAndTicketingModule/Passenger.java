@@ -19,9 +19,14 @@ public class Passenger implements Serializable{
 	
 	public String getPassengerInfo()
 	{
-		String info = "Name: " + name + "\nSurname: " + surname + "\nPassenger ID: " + passengerID + "\nContact Info: " + contactInfo;
-		return info;
+		return String.format("%s %s (ID: %s) - İletişim: %s", 
+                name, surname, passengerID, contactInfo);
 	}
+	
+	@Override
+    public String toString() {
+        return getPassengerInfo();
+    }
 	
 	public String getPassengerID() {
 		return passengerID;

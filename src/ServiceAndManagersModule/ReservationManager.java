@@ -1,22 +1,21 @@
 package ServiceAndManagersModule;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import FlightManagementModule.Flight;
 import FlightManagementModule.Seat;
 import ReservationAndTicketingModule.Passenger;
 import ReservationAndTicketingModule.Reservation;
 
-import java.util.ArrayList;
-import ReservationAndTicketingModule.*;
-import FlightManagementModule.*;
-
-
 public class ReservationManager {
     private List<Reservation> reservations;
-    // Rezervasyonların tutulacağı dosya adı
     private final String FILE_NAME = "reservations.dat";
 
+    @SuppressWarnings("unchecked")
     public ReservationManager() {
         // 1. Program başlarken eski rezervasyonları yükle
         Object data = FileManager.loadData(FILE_NAME);
@@ -28,23 +27,79 @@ public class ReservationManager {
         }
     }
 
+    /**
+     * Yeni bir rezervasyon oluşturur, koltuğu kapatır ve dosyaya kaydeder.
+     */
     public Reservation makeReservation(Flight f, Passenger p, Seat s) {
-        // Not: Burada henüz logic yok, sadece kayıt mantığını gösteriyorum
+        // 1. Validasyon: Koltuk zaten dolu mu?
+        if (s.isReserved()) {
+            System.out.println("Hata: Seçilen koltuk (" + s.getSeatNum() + ") zaten dolu!");
+            return null;
+        }
+
+        // 2. Rezervasyon Kodu Üret (Örn: REZ-4821)
+        String resCode = "REZ-" + (1000 + new Random().nextInt(9000));
         
-        // Örnek iskelet:
-        // Reservation newRes = new Reservation(..., f, p, s, ...);
-        // reservations.add(newRes);
+        // 3. Tarih Al (Bugün)
+        String date = LocalDate.now().format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+
+        // 4. Nesneyi Oluştur
+        Reservation newRes = new Reservation(resCode, f, p, s, date);
         
-        // 2. Yeni rezervasyonu dosyaya kaydet
+        // 5. Koltuğu "DOLU" olarak işaretle (Kritik Adım)
+        s.setReserveStatus(true);
+
+        // 6. Listeye Ekle ve Kaydet
+        reservations.add(newRes);
         FileManager.saveData(FILE_NAME, this.reservations);
         
-        return null; // Şimdilik null
+        System.out.println("Rezervasyon Başarılı: " + resCode);
+        return newRes;
     }
 
-    public void cancelReservation(String resCode) {
-        // İptal mantığı...
-        
-        // 3. İptal sonrası dosyayı güncelle
-        FileManager.saveData(FILE_NAME, this.reservations);
+    /**
+     * Rezervasyon koduna göre iptal işlemi yapar ve koltuğu boşa çıkarır.
+     */
+    public boolean cancelReservation(String resCode) {
+        for (Reservation res : reservations) {
+            // Kodu bul ve eğer zaten iptal edilmemişse işlem yap
+            if (res.getReservationCode().equals(resCode) && res.isActive()) {
+                
+                // 1. Rezervasyonu pasife çek
+                res.cancel();
+                
+                // 2. Koltuğu tekrar "BOŞ" yap (Kritik Adım)
+                if (res.getSeat() != null) {
+                    res.getSeat().setReserveStatus(false);
+                }
+                
+                // 3. Dosyayı güncelle
+                FileManager.saveData(FILE_NAME, this.reservations);
+                System.out.println("Rezervasyon iptal edildi: " + resCode);
+                return true;
+            }
+        }
+        System.out.println("İptal edilecek aktif rezervasyon bulunamadı: " + resCode);
+        return false;
+    }
+    
+    /**
+     * Tüm rezervasyonları döndürür.
+     */
+    public List<Reservation> getAllReservations() {
+        return reservations;
+    }
+    
+    /**
+     * Belirli bir uçuşa ait rezervasyonları bulur (Raporlama için).
+     */
+    public List<Reservation> getReservationsByFlight(String flightNum) {
+        List<Reservation> flightRes = new ArrayList<>();
+        for (Reservation r : reservations) {
+            if (r.getFlight().getFlightNum().equals(flightNum)) {
+                flightRes.add(r);
+            }
+        }
+        return flightRes;
     }
 }

@@ -15,12 +15,25 @@ public class Route implements Serializable {
         this.airportCode = airportCode;
     }
 
-    // Methods (UML'den)
+    // --- DOLDURULAN KISIMLAR ---
+
+    /**
+     * Rota bilgisini formatlı bir şekilde döndürür.
+     * Örn: "Istanbul -> Ankara [IST]"
+     */
     public String getRouteDetails() {
-        return null; // TODO: Implement logic later
+        return departurePlace + " -> " + arrivalPlace + " [" + airportCode + "]";
     }
 
-    // Getter methods (Gerekli olacağı için eklendi)
+    /**
+     * Terminalde nesneyi yazdırınca anlamlı çıktı verir.
+     */
+    @Override
+    public String toString() {
+        return getRouteDetails();
+    }
+
+    // --- GETTER METODLARI ---
     public String getDeparturePlace() { return departurePlace; }
     public String getArrivalPlace() { return arrivalPlace; }
     public String getAirportCode() { return airportCode; }

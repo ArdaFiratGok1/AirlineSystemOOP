@@ -1,12 +1,15 @@
 package FlightManagementModule;
 
 import java.io.Serializable;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 
 public class Flight implements Serializable {
-    // Attributes (UML'den)
+    // Attributes
     private String flightNum;
     private Route route;
-    private String date;
+    private String date;      // Format: "dd-MM-yyyy" (Örn: "01-01-2026")
     private String hour;
     private String duration;
     private Plane plane;
@@ -21,18 +24,47 @@ public class Flight implements Serializable {
         this.plane = plane;
     }
 
-    // Methods (UML'den)
+    // --- DOLDURULAN KISIMLAR ---
+
+    /**
+     * Uçuş tarihini bugünün tarihiyle kıyaslar.
+     * Eğer uçuş tarihi geçmişse true döndürür.
+     */
     public boolean isExpired() {
-        return false; // TODO: Implement date comparison logic later
+        try {
+            // Tarih formatını belirliyoruz (Gün-Ay-Yıl)
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+            LocalDate flightDate = LocalDate.parse(this.date, formatter);
+            
+            // Uçuş tarihi bugünden önceyse süresi geçmiştir
+            return flightDate.isBefore(LocalDate.now());
+        } catch (DateTimeParseException e) {
+            System.err.println("Tarih formatı hatası (" + flightNum + "): " + this.date);
+            return false; // Hata varsa varsayılan olarak geçmemiş sayalım
+        }
     }
 
+    /**
+     * Uçuş bilgilerini okunabilir bir String olarak döndürür.
+     */
     public String getFlightDetails() {
-        return null; // TODO: Implement string formatting later
+        String routeInfo = (route != null) ? route.getDeparturePlace() + " -> " + route.getArrivalPlace() : "Rota Yok";
+        return String.format("Uçuş: %s | %s | Tarih: %s %s | Süre: %s", 
+                flightNum, routeInfo, date, hour, duration);
     }
 
-    // Getter methods (Erişim için gerekli)
+    /**
+     * Terminalde nesneyi yazdırınca (System.out.println) anlamlı çıktı verir.
+     */
+    @Override
+    public String toString() {
+        return getFlightDetails();
+    }
+
+    // --- GETTER METODLARI ---
     public String getFlightNum() { return flightNum; }
     public Route getRoute() { return route; }
     public Plane getPlane() { return plane; }
     public String getDate() { return date; }
+    public String getHour() { return hour; } // Bunu da ekledim, lazım olabilir
 }
