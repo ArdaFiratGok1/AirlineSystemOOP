@@ -27,7 +27,7 @@ public class Plane implements Serializable {
      * Döküman Kaynak 9 ve 15.
      * Koltukları oluşturup Map'e ekler.
      */
-    public void initializeSeats() {
+    public void initializeSeats() {                  // BU KISMI FIXED DEGIL DE ADMININ EKLEYISINE GORE GUNCELLESEK CICIS OLUR AMA BU SONRAKI ASAMAAAAAAAAA
         // Dökümanda 30 sıra ve 6 sütun (A-F) örneği verilmişti.
         // Ancak Map kullandığımız için ileride burası dinamik parametre de alabilir.
         char[] colLetters = {'A', 'B', 'C', 'D', 'E', 'F'};
