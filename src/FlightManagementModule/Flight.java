@@ -1,7 +1,7 @@
 package FlightManagementModule;
 
 import java.io.Serializable;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 
@@ -9,8 +9,8 @@ public class Flight implements Serializable {
     // Attributes
     private String flightNum;
     private Route route;
-    private String date;      // Format: "dd-MM-yyyy" (Örn: "01-01-2026")
-    private String hour;
+    private String date;      // Format: "dd-MM-yyyy" (Örn: "01-01-2026")  
+    private String hour;      // Format: "HH:mm" (Örn: "14:30")
     private String duration;
     private Plane plane;
 
@@ -28,9 +28,25 @@ public class Flight implements Serializable {
 
     /**
      * Uçuş tarihini bugünün tarihiyle kıyaslar.
-     * Eğer uçuş tarihi geçmişse true döndürür.
+     * Eğer uçuş anı (tarih + saat) geçmişte kaldiysa true döndürür.
      */
-    public boolean isExpired() {
+    
+    public boolean isExpired() // GUNCELLEDIM ARTIK FARKLI KUTUP KULLANIP SAATLERI DE KARSILASTIRIYOZ
+    {
+    	try
+    	{
+    		String dateTimeString = this.date+ " " + this.hour; // tarih ve saat birlestirmesi	
+    		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm"); 
+    		LocalDateTime flightDateTime = LocalDateTime.parse(dateTimeString, formatter);
+    		return flightDateTime.isBefore(LocalDateTime.now()); //bu karsilastirma saate de bakiyor
+    	} catch (DateTimeParseException e)
+    	{
+    		System.err.println("Tarih/Saat formatı hatası (" + flightNum + "): " + this.date + " " + this.hour);
+    		return false; //hata varsa gecmemis sayma
+    	}
+    }
+    
+    /*public boolean isExpired() {
         try {
             // Tarih formatını belirliyoruz (Gün-Ay-Yıl)
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
@@ -43,6 +59,7 @@ public class Flight implements Serializable {
             return false; // Hata varsa varsayılan olarak geçmemiş sayalım
         }
     }
+    */
 
     /**
      * Uçuş bilgilerini okunabilir bir String olarak döndürür.
