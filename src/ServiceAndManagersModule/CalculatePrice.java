@@ -35,7 +35,7 @@ public class CalculatePrice {
  /**
   * Fiyata %10 indirim uygular.
   */
- public double applyDiscount(double price) {
+ public double applyDiscount(double price) { // 25 YAS ALTINA UYGULANABILIR
      // %10 indirim = Fiyatın %90'ı
      return price * 0.90;
  }

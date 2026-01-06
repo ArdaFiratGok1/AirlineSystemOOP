@@ -15,7 +15,7 @@ public class Scenario1 {
     
     // Senaryo Ayarları
     private static final int PASSENGER_COUNT = 90; // 90 Yolcu saldıracak
-    private static final boolean IS_SYNCHRONIZED = true; // TRUE yaparsan düzgün çalışır, FALSE yaparsan patlar
+    private static final boolean IS_SYNCHRONIZED = false; // TRUE yaparsan düzgün çalışır, FALSE yaparsan patlar
 
     public static void main(String[] args) {
         System.out.println("=== THREAD SİMÜLASYONU BAŞLIYOR ===");

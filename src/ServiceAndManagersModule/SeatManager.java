@@ -10,11 +10,16 @@ import FlightManagementModule.Seat;
 
 public class SeatManager {
 
- public void createSeatingArrangement(Plane p) {
+	
+	
+	                   //BU KISIM SILINDI CUNKU PLANE'IN CONSTRUCTERI BUNU ZATEN YAPIYO
+ /*public void createSeatingArrangement(Plane p) {
      if (p != null) {
          p.initializeSeats(); 
      }
  }
+ 
+ */    
 
  /**
   * Uçaktaki boş koltuk sayısını hesaplar.

@@ -8,38 +8,44 @@ public class Plane implements Serializable {
     private String planeID;
     private String planeModel;
     private int capacity;
+    private int maxCapacity;
     
     // DEĞİŞİKLİK: Matris yerine Map kullanıyoruz.
     // Key: "1A" (Koltuk No), Value: Seat Nesnesi
     private Map<String, Seat> seats; 
 
-    public Plane(String planeID, String planeModel, int capacity) {
+    public Plane(String planeID, String planeModel, int maxCapacity) {
         this.planeID = planeID;
         this.planeModel = planeModel;
-        this.capacity = capacity;
+        this.maxCapacity = maxCapacity;
+        int targetCapacity = (maxCapacity * 90) / 100;
+        int rows = targetCapacity / 6;
+        this.capacity = rows * 6;
         this.seats = new HashMap<>(); // Boş harita oluşturuluyor
-        
+  
         // Constructor çalıştığında koltukları dolduruyoruz
-        initializeSeats(); 
+        initializeSeats(rows);  //CONSTRUCTERA MAXCAPACITY EKLEYIP ONUN %90INI CAPACITYE ATAYIP KAPASITE DOLDUKTAN SONRA KALAN BOS YERLERI ZAMLI FIYATTAN SATABILIRIZ
+
     }
 
     /**
      * Döküman Kaynak 9 ve 15.
      * Koltukları oluşturup Map'e ekler.
      */
-    public void initializeSeats() {                  // BU KISMI FIXED DEGIL DE ADMININ EKLEYISINE GORE GUNCELLESEK CICIS OLUR AMA BU SONRAKI ASAMAAAAAAAAA
+    public void initializeSeats(int rowNum) {           
         // Dökümanda 30 sıra ve 6 sütun (A-F) örneği verilmişti.
         // Ancak Map kullandığımız için ileride burası dinamik parametre de alabilir.
         char[] colLetters = {'A', 'B', 'C', 'D', 'E', 'F'};
-        int rows = 30; 
-
-        for (int row = 0; row < rows; row++) {
-            for (int col = 0; col < 6; col++) {
-                String seatNum = (row + 1) + "" + colLetters[col];//String oldugunu anlasın diye "" koydum buraya
+        int r, col;
+        int businessRowLimit = (rowNum * 15) / 100;
+        boolean isBusiness;
+        for (r = 0; r < rowNum; r++) {
+            for (col = 0; col < 6; col++) {
+                String seatNum = (r + 1) + "" + colLetters[col];//String oldugunu anlasın diye "" koydum buraya
                 
-                // İlk 5 sıra Business, kalanı Economy
-                SeatType type = (row < 5) ? SeatType.BUSINESS : SeatType.ECONOMY;
-                double price = (row < 5) ? 5000.0 : 1500.0;
+                isBusiness = r < businessRowLimit;
+                SeatType type = isBusiness ? SeatType.BUSINESS : SeatType.ECONOMY; //BURDA UCAGIN KAPASITESININ %15INI BUSINESS YAPMAYA CALISTIM
+                double price = isBusiness ? 5000.0 : 1500.0;
 
                 Seat seat = new Seat(seatNum, type, price);
                 
@@ -61,8 +67,9 @@ public class Plane implements Serializable {
 		this.planeID = planeID;
 	}
 
-	public void setCapacity(int capacity) {
-		this.capacity = capacity;
+	public int getMaxCapacity()
+	{
+		return maxCapacity;
 	}
 
 	public void setSeats(Map<String, Seat> seats) {
