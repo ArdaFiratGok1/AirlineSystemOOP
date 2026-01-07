@@ -1,9 +1,8 @@
 package ServiceAndManagersModule;
 
 import java.util.List;
-
 import FlightManagementModule.Flight;
-
+import java.util.stream.Collectors;
 import java.util.ArrayList;
 
 public class FlightManager {
@@ -73,7 +72,29 @@ public class FlightManager {
         }
         return null;
     }
+    
+    public List<Flight> getActiveFlights() {
+        List<Flight> activeList = new ArrayList<>();
+        for (Flight f : flights) {
+            // isExpired false ise (süresi geçmemişse) listeye ekle
+            if (!f.isExpired()) {
+                activeList.add(f);
+            }
+        }
+        return activeList;
+    }
 
+    public List<Flight> getPastFlights() {
+        List<Flight> pastList = new ArrayList<>();
+        for (Flight f : flights) {
+            // isExpired true ise (süresi geçmişse) listeye ekle 
+            if (f.isExpired()) {
+                pastList.add(f);
+            }
+        }
+        return pastList;
+    }
+    
     public List<Flight> getAllFlights() {
         return flights;
     }

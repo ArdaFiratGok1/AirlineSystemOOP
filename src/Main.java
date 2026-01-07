@@ -13,8 +13,6 @@ import ServiceAndManagersModule.FlightManager;
 import ServiceAndManagersModule.ReservationManager;
 import ServiceAndManagersModule.SeatManager;
 
-import java.util.List;
-import java.util.Scanner;
 import java.util.Random;
 
 public class Main {
@@ -44,7 +42,7 @@ public class Main {
 
             switch (choice) {
                 case 1:
-                    listAllFlights();
+                    listActiveFlights();
                     break;
                 case 2:
                     makeNewReservation();
@@ -57,6 +55,9 @@ public class Main {
                     break;
                 case 5:
                     adminAddFlight();
+                    break;
+                case 6:
+                    listPastFlights(); // Yeni case
                     break;
                 case 0:
                     System.out.println("Sistemden çıkılıyor. İyi günler!");
@@ -72,30 +73,45 @@ public class Main {
 
     private static void printMenu() {
         System.out.println("\n==========================================");
-        System.out.println("     UÇUŞ REZERVASYON SİSTEMİ  ");
+        System.out.println("      UÇUŞ REZERVASYON SİSTEMİ  ");
         System.out.println("==========================================");
-        System.out.println("1. Uçuşları Listele (Seferleri Gör)");
+        System.out.println("1. Aktif Uçuşları Listele (Bilet Alınabilir)");
         System.out.println("2. Bilet Al / Rezervasyon Yap");
         System.out.println("3. Rezervasyon İptal Et");
         System.out.println("4. Tüm Rezervasyonları Listele (Rapor)");
         System.out.println("5. Yeni Uçuş Ekle (Admin)");
+        System.out.println("6. Geçmiş Uçuşları Listele (Arşiv)"); // YENİ
         System.out.println("0. Çıkış");
         System.out.println("==========================================");
     }
 
-    private static void listAllFlights() {
-        System.out.println("\n---  AKTİF UÇUŞLAR ---");
-        List<Flight> flights = flightManager.getAllFlights();
+    private static void listActiveFlights() {
+        System.out.println("\n--- ✈️ AKTİF UÇUŞLAR ---");
+        List<Flight> flights = flightManager.getActiveFlights();
         
         if (flights.isEmpty()) {
-            System.out.println("Sistemde kayıtlı uçuş yok.");
+            System.out.println("Sistemde aktif uçuş bulunmamaktadır.");
             return;
         }
-
         for (Flight f : flights) {
             int emptySeats = seatManager.getAvailableSeatCount(f);
             System.out.println(f.getFlightDetails());
             System.out.println("   -> Boş Koltuk: " + emptySeats + " / " + f.getPlane().getCapacity());
+            System.out.println("------------------------------------------");
+        }
+    }
+
+    private static void listPastFlights() {
+        System.out.println("\n--- 🕰️ GEÇMİŞ UÇUŞLAR (ARŞİV) ---");
+        List<Flight> flights = flightManager.getPastFlights();
+        if (flights.isEmpty()) {
+            System.out.println("Geçmiş uçuş kaydı yok.");
+            return;
+        }
+        for (Flight f : flights) {
+            // Geçmiş uçuşlarda boş koltuk sayısının bir önemi yoktur, sadece detay basıyoruz
+            System.out.println(f.getFlightDetails());
+            System.out.println("   -> DURUM: TAMAMLANDI");
             System.out.println("------------------------------------------");
         }
     }
@@ -110,6 +126,10 @@ public class Main {
         Flight selectedFlight = flightManager.getFlightByNum(flightNum);
         if (selectedFlight == null) {
             System.out.println("HATA: Böyle bir uçuş bulunamadı!");
+            return;
+        }
+        if (selectedFlight.isExpired()) {
+            System.out.println("HATA: Bu uçuşun süresi geçmiş, bilet alamazsınız!");
             return;
         }
 
