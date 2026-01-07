@@ -12,6 +12,7 @@ import ServiceAndManagersModule.CalculatePrice;
 import ServiceAndManagersModule.FlightManager;
 import ServiceAndManagersModule.ReservationManager;
 import ServiceAndManagersModule.SeatManager;
+import ServiceAndManagersModule.ReportGenerator;
 
 import java.util.Random;
 
@@ -58,6 +59,9 @@ public class Main {
                     break;
                 case 6:
                     listPastFlights(); // Yeni case
+                    break;
+                case 7:
+                    generateReportAsync(); 
                     break;
                 case 0:
                     System.out.println("Sistemden çıkılıyor. İyi günler!");
@@ -249,6 +253,17 @@ public class Main {
                 System.out.println(r);
             }
         }
+    }
+    
+    private static void generateReportAsync() {
+        // Create the task using the ReportGenerator class
+        ReportGenerator task = new ReportGenerator(flightManager);
+        
+        // Run it in a separate thread so it doesn't block the main menu
+        Thread thread = new Thread(task);
+        thread.start();
+        
+        System.out.println(">> (Main Thread) Rapor isteği alındı. Siz menüyü kullanmaya devam edebilirsiniz.");
     }
 
     private static void adminAddFlight() {
