@@ -41,7 +41,7 @@ public class FlightSearchEngine implements Serializable {
 
         // Tarih formatı: Gün-Ay-Yıl (Flight sınıfındaki formatla aynı olmalı)
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now();//BUNA BAKILACAK
 
         for (Flight f : flights) {
             try {

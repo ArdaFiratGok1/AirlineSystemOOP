@@ -84,13 +84,14 @@ public class Main {
         System.out.println("3. Rezervasyon İptal Et");
         System.out.println("4. Tüm Rezervasyonları Listele (Rapor)");
         System.out.println("5. Yeni Uçuş Ekle (Admin)");
-        System.out.println("6. Geçmiş Uçuşları Listele (Arşiv)"); // YENİ
+        System.out.println("6. Geçmiş Uçuşları Listele (Arşiv)");
+        System.out.println("7. Rapor Al (Asenkron - Scenario 2)");
         System.out.println("0. Çıkış");
         System.out.println("==========================================");
     }
 
     private static void listActiveFlights() {
-        System.out.println("\n--- ✈️ AKTİF UÇUŞLAR ---");
+        System.out.println("\n---  AKTİF UÇUŞLAR ---");
         List<Flight> flights = flightManager.getActiveFlights();
         
         if (flights.isEmpty()) {

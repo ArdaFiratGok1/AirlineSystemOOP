@@ -9,6 +9,7 @@ import java.util.Random;
 import FlightManagementModule.Flight;
 import FlightManagementModule.Plane;
 import FlightManagementModule.Route;
+import FlightManagementModule.Seat; // Doluluk hesabı için gerekli
 import ServiceAndManagersModule.FlightManager;
 
 public class AdminDashboardGUI extends JFrame {
@@ -24,8 +25,8 @@ public class AdminDashboardGUI extends JFrame {
         flightManager = new FlightManager();
 
         setTitle("YÖNETİCİ PANELİ - Uçuş Yönetimi");
-        setSize(800, 600);
-        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE); // Programı kapatma, sadece pencereyi kapat
+        setSize(900, 650); // Rapor butonu sığsın diye biraz genişlettik
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
 
@@ -36,7 +37,6 @@ public class AdminDashboardGUI extends JFrame {
         add(lblTitle, BorderLayout.NORTH);
 
         // --- 2. ORTA PANEL (Tablo) ---
-        // Tablo Sütunları
         String[] columns = {"Uçuş No", "Nereden", "Nereye", "Tarih", "Saat", "Uçak Modeli"};
         tableModel = new DefaultTableModel(columns, 0);
         flightTable = new JTable(tableModel);
@@ -45,11 +45,12 @@ public class AdminDashboardGUI extends JFrame {
 
         add(new JScrollPane(flightTable), BorderLayout.CENTER);
 
-        // --- 3. ALT PANEL (Ekleme Formu) ---
+        // --- 3. ALT PANEL (Ekleme Formu ve Rapor) ---
         JPanel bottomPanel = new JPanel();
         bottomPanel.setLayout(new BoxLayout(bottomPanel, BoxLayout.Y_AXIS));
-        bottomPanel.setBorder(BorderFactory.createTitledBorder("Yeni Uçuş Ekle"));
+        bottomPanel.setBorder(BorderFactory.createTitledBorder("İşlemler"));
 
+        // Form Paneli
         JPanel formPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         
         txtFlightNum = new JTextField(5);
@@ -64,22 +65,33 @@ public class AdminDashboardGUI extends JFrame {
         formPanel.add(new JLabel("Tarih (GG-AA-YYYY):")); formPanel.add(txtDate);
         formPanel.add(new JLabel("Saat:")); formPanel.add(txtTime);
 
-        JButton btnAdd = new JButton("EKLE");
+        // EKLE Butonu
+        JButton btnAdd = new JButton("UÇUŞ EKLE");
         btnAdd.setBackground(new Color(60, 179, 113)); // Yeşil
         btnAdd.setForeground(Color.WHITE);
         formPanel.add(btnAdd);
 
+        // --- YENİ EKLENEN KISIM: RAPOR BUTONU (SCENARIO 2) ---
+        JButton btnReport = new JButton("DOLULUK RAPORU AL (Asenkron)");
+        btnReport.setBackground(new Color(255, 140, 0)); // Turuncu
+        btnReport.setForeground(Color.WHITE);
+        formPanel.add(btnReport);
+        // -----------------------------------------------------
+
         bottomPanel.add(formPanel);
         add(bottomPanel, BorderLayout.SOUTH);
 
-        // --- BUTON AKSİYONU ---
+        // --- BUTON AKSİYONLARI ---
         btnAdd.addActionListener(e -> addNewFlight());
+        
+        // Rapor butonuna basınca asenkron metod çalışacak
+        btnReport.addActionListener(e -> generateReportAsync());
 
         setVisible(true);
     }
 
     private void loadFlightsToTable() {
-        tableModel.setRowCount(0); // Tabloyu temizle
+        tableModel.setRowCount(0); 
         List<Flight> flights = flightManager.getAllFlights();
         
         for (Flight f : flights) {
@@ -88,7 +100,7 @@ public class AdminDashboardGUI extends JFrame {
                 f.getRoute().getDeparturePlace(),
                 f.getRoute().getArrivalPlace(),
                 f.getDate(),
-                f.getTime(),//hour döndürüyoz burda
+                f.getTime(),
                 f.getPlane().getPlaneModel()
             };
             tableModel.addRow(row);
@@ -108,21 +120,71 @@ public class AdminDashboardGUI extends JFrame {
                 return;
             }
 
-            // Basitlik adına Uçak ve Rota otomatik oluşturuluyor
             Plane p = new Plane("PL-" + new Random().nextInt(999), "Boeing 737", 180);
             Route r = new Route(dep, arr, "GENEL");
             
             Flight f = new Flight(num, r, date, time, "2h", p);
             
-            flightManager.addFlight(f); // Dosyaya kaydeder
-            loadFlightsToTable(); // Tabloyu güncelle
+            flightManager.addFlight(f); 
+            loadFlightsToTable(); 
             
             JOptionPane.showMessageDialog(this, "Uçuş Başarıyla Eklendi!");
             
-            // Alanları temizle
             txtFlightNum.setText(""); txtDep.setText(""); txtArr.setText("");
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Hata: " + ex.getMessage());
         }
+    }
+
+    /**
+     * SCENARIO 2: Asynchronous GUI Task
+     * Arayüzü dondurmadan arka planda rapor hazırlar.
+     */
+    private void generateReportAsync() {
+        // 1. Kullanıcıya bilgi ver (Hemen çalışır)
+        JOptionPane.showMessageDialog(this, 
+            "Rapor hazırlanıyor... Lütfen bekleyiniz.\n(Arayüz donmayacak, işlem arkada sürüyor)", 
+            "İşlem Başladı", JOptionPane.INFORMATION_MESSAGE);
+
+        // 2. Thread başlat
+        new Thread(() -> {
+            try {
+                // Uzun süren işlemi simüle et (3 saniye)
+                Thread.sleep(3000);
+
+                StringBuilder report = new StringBuilder();
+                report.append("=== DETAYLI DOLULUK RAPORU ===\n\n");
+
+                for (Flight f : flightManager.getAllFlights()) {
+                    int capacity = f.getPlane().getCapacity();
+                    // Stream ile dolu koltukları sayıyoruz
+                    long occupied = f.getPlane().getSeats().values().stream()
+                                     .filter(Seat::isReserved).count();
+                    
+                    double ratio = (capacity > 0) ? ((double) occupied / capacity * 100) : 0;
+
+                    report.append(String.format("Uçuş: %-6s | Rota: %s -> %s | Dolu: %d/%d (%%.2f)\n", 
+                        f.getFlightNum(), 
+                        f.getRoute().getDeparturePlace(), 
+                        f.getRoute().getArrivalPlace(),
+                        occupied, capacity, ratio));
+                }
+
+                // 3. İşlem bitince sonucu ekrana bas (Swing Thread'ine dönmek için invokeLater şart)
+                SwingUtilities.invokeLater(() -> {
+                    JTextArea textArea = new JTextArea(report.toString());
+                    textArea.setEditable(false);
+                    textArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+                    
+                    JScrollPane scrollPane = new JScrollPane(textArea);
+                    scrollPane.setPreferredSize(new Dimension(500, 300));
+                    
+                    JOptionPane.showMessageDialog(AdminDashboardGUI.this, scrollPane, "Rapor Sonucu", JOptionPane.INFORMATION_MESSAGE);
+                });
+
+            } catch (InterruptedException ex) {
+                ex.printStackTrace();
+            }
+        }).start();
     }
 }

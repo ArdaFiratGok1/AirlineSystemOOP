@@ -90,3 +90,5 @@ public class LoginGUI extends JFrame {
         SwingUtilities.invokeLater(() -> new LoginGUI());
     }
 }
+
+//Dolu ve boş koltuklar bir panelde gözükmesi
