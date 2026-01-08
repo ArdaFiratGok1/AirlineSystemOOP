@@ -217,7 +217,7 @@ public class Main {
         }
 
         // 2. Rezervasyonu İptal Et (reservation.dat güncellenir)
-        boolean success = reservationManager.cancelReservation(code);
+        boolean success = reservationManager.cancelReservation(code,flightManager);
 
         // 3. SENKRONİZASYON: Uçuş dosyasındaki koltuğu da boşa çıkarmamız lazım!
         if (success) {

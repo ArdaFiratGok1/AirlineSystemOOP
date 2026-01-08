@@ -20,6 +20,8 @@ public class AdminDashboardGUI extends JFrame {
     private UserManager userManager;
     private User currentUser; 
     
+    private ServiceAndManagersModule.ReservationManager resManager;
+    
     private DefaultTableModel flightTableModel;
     private DefaultTableModel userTableModel;
     
@@ -30,6 +32,7 @@ public class AdminDashboardGUI extends JFrame {
         
         flightManager = new FlightManager();
         userManager = new UserManager();
+        resManager = new ServiceAndManagersModule.ReservationManager();
         
         // --- MODERN TEMA KURULUMU ---
         setupTheme();
@@ -129,7 +132,7 @@ public class AdminDashboardGUI extends JFrame {
         JPanel panel = new JPanel(new BorderLayout(15, 15));
         panel.setOpaque(false);
 
-        // Arama
+        // --- 1. ARAMA ÇUBUĞU ---
         JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         searchPanel.setOpaque(false);
         JLabel lblSearch = new JLabel("🔍 Uçuş Ara:");
@@ -140,9 +143,14 @@ public class AdminDashboardGUI extends JFrame {
         searchPanel.add(txtSearch);
         panel.add(searchPanel, BorderLayout.NORTH);
 
-        // Tablo
+        // --- 2. TABLO ---
         String[] columns = {"Uçuş No", "Nereden", "Nereye", "Tarih", "Saat", "Uçak", "Kapasite"};
-        flightTableModel = new DefaultTableModel(columns, 0);
+        flightTableModel = new DefaultTableModel(columns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false; // Hücre içinde direkt düzenlemeyi kapatıyoruz (Karışıklık olmasın diye)
+            }
+        };
         JTable table = new JTable(flightTableModel);
         
         table.setFillsViewportHeight(true);
@@ -170,35 +178,12 @@ public class AdminDashboardGUI extends JFrame {
             }
         });
 
-        // Sağ Tık
-        JPopupMenu popupMenu = new JPopupMenu();
-        JMenuItem deleteItem = new JMenuItem("❌ Bu Uçuşu Sil");
-        JMenuItem refreshItem = new JMenuItem("🔄 Tabloyu Yenile");
-        popupMenu.add(refreshItem);
-        popupMenu.addSeparator();
-        popupMenu.add(deleteItem);
-        table.setComponentPopupMenu(popupMenu);
-
-        deleteItem.addActionListener(e -> {
-            int row = table.getSelectedRow();
-            if (row != -1) {
-                int modelRow = table.convertRowIndexToModel(row);
-                String fNum = (String) flightTableModel.getValueAt(modelRow, 0);
-                if (JOptionPane.showConfirmDialog(this, fNum + " silinsin mi?", "Onay", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
-                    flightManager.removeFlight(fNum);
-                    loadFlightsToTable();
-                    JOptionPane.showMessageDialog(this, "Uçuş silindi.");
-                }
-            }
-        });
-        refreshItem.addActionListener(e -> loadFlightsToTable());
-
-        // Alt Form
+        // --- 3. ALT FORM VE BUTONLAR ---
         JPanel formPanel = new JPanel(new GridBagLayout());
         formPanel.setBackground(new Color(235, 245, 251)); 
         formPanel.setBorder(BorderFactory.createTitledBorder(
             BorderFactory.createMatteBorder(2, 2, 2, 2, new Color(52, 152, 219)),
-            " Yeni Uçuş Planla ", 0, 0, new Font("Segoe UI", Font.BOLD, 14), new Color(41, 128, 185)
+            " Uçuş İşlemleri ", 0, 0, new Font("Segoe UI", Font.BOLD, 14), new Color(41, 128, 185)
         ));
 
         GridBagConstraints gbc = new GridBagConstraints();
@@ -217,24 +202,91 @@ public class AdminDashboardGUI extends JFrame {
         addFormRow(formPanel, gbc, 3, "Tarih:", txtDate);
         addFormRow(formPanel, gbc, 4, "Saat:", txtTime);
 
-        JButton btnAdd = new JButton("UÇUŞU SİSTEME EKLE");
-        btnAdd.setBackground(new Color(39, 174, 96));
+        // --- BUTONLAR ---
+        JButton btnAdd = new JButton("EKLE");
+        btnAdd.setBackground(new Color(39, 174, 96)); // Yeşil
         btnAdd.setForeground(Color.WHITE);
         
-        JButton btnDelete = new JButton("SEÇİLİ UÇUŞU SİL");
-        btnDelete.setBackground(new Color(231, 76, 60)); 
+        JButton btnUpdate = new JButton("GÜNCELLE");
+        btnUpdate.setBackground(new Color(243, 156, 18)); // Turuncu
+        btnUpdate.setForeground(Color.WHITE);
+
+        JButton btnDelete = new JButton("SİL");
+        btnDelete.setBackground(new Color(231, 76, 60)); // Kırmızı
         btnDelete.setForeground(Color.WHITE);
         
-        gbc.gridx = 0; gbc.gridy = 5; gbc.gridwidth = 2;
-        formPanel.add(btnAdd, gbc);
-        gbc.gridy = 6;
-        formPanel.add(btnDelete, gbc);
+        JButton btnClear = new JButton("TEMİZLE");
+        btnClear.setBackground(Color.GRAY);
+        btnClear.setForeground(Color.WHITE);
 
+        // Butonları Yan Yana Koymak İçin Panel
+        JPanel btnGroup = new JPanel(new GridLayout(1, 4, 10, 0));
+        btnGroup.setOpaque(false);
+        btnGroup.add(btnAdd);
+        btnGroup.add(btnUpdate);
+        btnGroup.add(btnDelete);
+        btnGroup.add(btnClear);
+        
+        gbc.gridx = 0; gbc.gridy = 5; gbc.gridwidth = 2;
+        formPanel.add(btnGroup, gbc);
+
+        // --- OLAYLAR (LISTENERS) ---
+
+        // 1. Tablo Seçim Olayı (Satıra tıklayınca verileri kutulara doldur)
+        table.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting() && table.getSelectedRow() != -1) {
+                int selectedRow = table.getSelectedRow();
+                int modelRow = table.convertRowIndexToModel(selectedRow);
+                
+                txtNum.setText(flightTableModel.getValueAt(modelRow, 0).toString());
+                txtDep.setText(flightTableModel.getValueAt(modelRow, 1).toString());
+                txtArr.setText(flightTableModel.getValueAt(modelRow, 2).toString());
+                txtDate.setText(flightTableModel.getValueAt(modelRow, 3).toString());
+                txtTime.setText(flightTableModel.getValueAt(modelRow, 4).toString());
+            }
+        });
+
+        // 2. Ekle Butonu
         btnAdd.addActionListener(e -> {
             addNewFlight(txtNum.getText(), txtDep.getText(), txtArr.getText(), txtDate.getText(), txtTime.getText());
-            txtNum.setText(""); txtDep.setText(""); txtArr.setText("");
+            clearFields(txtNum, txtDep, txtArr, txtDate, txtTime);
+        });
+
+        // 3. Güncelle Butonu
+        btnUpdate.addActionListener(e -> {
+            int selectedRow = table.getSelectedRow();
+            if (selectedRow == -1) {
+                JOptionPane.showMessageDialog(this, "Lütfen güncellenecek uçuşu tablodan seçiniz!");
+                return;
+            }
+            
+            // Orijinal Uçuş Numarasını al (Değişiklik yapılmadan önceki hali)
+            int modelRow = table.convertRowIndexToModel(selectedRow);
+            String originalNum = flightTableModel.getValueAt(modelRow, 0).toString();
+            
+            // Yeni verileri kutulardan al
+            String newNum = txtNum.getText();
+            String newDep = txtDep.getText();
+            String newArr = txtArr.getText();
+            String newDate = txtDate.getText();
+            String newTime = txtTime.getText();
+            
+            // Uçak nesnesini yeniden oluşturuyoruz (Basitlik için random uçak atadım, istersen mevcut uçağı koruyabilirsin)
+            Plane p = new Plane("PL-UPD", "Boeing 737", 180); 
+            Route r = new Route(newDep, newArr, "GENEL");
+            Flight updatedFlight = new Flight(newNum, r, newDate, newTime, "2h", p);
+            
+            // Manager üzerinden güncelle4
+            flightManager.updateFlight(originalNum, updatedFlight);
+            
+            resManager.updateFlightInfoInReservations(originalNum, updatedFlight);
+            
+            loadFlightsToTable(); 
+            JOptionPane.showMessageDialog(this, "Uçuş ve ilgili biletler güncellendi!");
+            clearFields(txtNum, txtDep, txtArr, txtDate, txtTime);
         });
         
+        // 4. Sil Butonu
         btnDelete.addActionListener(e -> {
             int selectedRow = table.getSelectedRow();
             if (selectedRow == -1) {
@@ -246,14 +298,24 @@ public class AdminDashboardGUI extends JFrame {
             if (JOptionPane.showConfirmDialog(this, fNum + " silinsin mi?", "Onay", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
                 flightManager.removeFlight(fNum);
                 loadFlightsToTable();
+                clearFields(txtNum, txtDep, txtArr, txtDate, txtTime);
                 JOptionPane.showMessageDialog(this, "Uçuş silindi.");
             }
+        });
+        
+        // 5. Temizle Butonu
+        btnClear.addActionListener(e -> {
+            table.clearSelection();
+            clearFields(txtNum, txtDep, txtArr, txtDate, txtTime);
         });
 
         panel.add(formPanel, BorderLayout.SOUTH);
         return panel;
     }
-
+    
+    private void clearFields(JTextField... fields) {
+        for (JTextField f : fields) f.setText("");
+    }
     // =========================================================================
     // SEKME 2: PERSONEL YÖNETİMİ
     // =========================================================================

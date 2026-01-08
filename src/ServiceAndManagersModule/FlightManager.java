@@ -43,22 +43,40 @@ public class FlightManager {
         }
     }
 
-    /**
-     * Güncellenmiş uçuş nesnesini alır, listedeki eskisini bulup değiştirir.
-     */
-    public void updateFlight(Flight updatedFlight) {
+ // =================================================================
+    // 1. METOD: Sadece rezervasyon yapıldığında çalışır (ID değişmez)
+    // PassengerDashboardGUI burayı kullanır.
+    // =================================================================
+    public void updateFlight(Flight flightToUpdate) {
+        // Aslında alttaki 2 parametreli metodu kendi ID'siyle çağırarak işi çözebiliriz.
+        // Bu sayede kod tekrarı olmaz.
+        updateFlight(flightToUpdate.getFlightNum(), flightToUpdate);
+    }
+
+    // =================================================================
+    // 2. METOD: Admin panelinden uçuş bilgileri (ID dahil) değişirse çalışır
+    // AdminDashboardGUI burayı kullanır.
+    // =================================================================
+    public void updateFlight(String originalFlightNum, Flight newFlightData) {
+        boolean found = false;
+        
         for (int i = 0; i < flights.size(); i++) {
             Flight current = flights.get(i);
             
-            // Eğer ID'ler eşleşiyorsa (Doğru uçuşu bulduk)
-            if (current.getFlightNum().equals(updatedFlight.getFlightNum())) {
-                flights.set(i, updatedFlight); // Listeyi güncelle
-                FileManager.saveData(FILE_NAME, this.flights); // Dosyayı güncelle
-                System.out.println("Uçuş güncellendi: " + updatedFlight.getFlightNum());
-                return;
+            // Listede orijinal numarayı (Eski ID) arıyoruz
+            if (current.getFlightNum().equals(originalFlightNum)) {
+                flights.set(i, newFlightData); // Eski nesneyi yenisiyle değiştir
+                found = true;
+                break; // Bulduk, döngüden çık
             }
         }
-        System.out.println("Güncellenecek uçuş bulunamadı!");
+
+        if (found) {
+            FileManager.saveData(FILE_NAME, this.flights); // Dosyayı güncelle
+            System.out.println("Uçuş ve dosya güncellendi: " + originalFlightNum);
+        } else {
+            System.out.println("Hata: Güncellenecek uçuş bulunamadı (" + originalFlightNum + ")");
+        }
     }
 
     /**

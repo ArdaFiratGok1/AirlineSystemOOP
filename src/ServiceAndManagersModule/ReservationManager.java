@@ -31,6 +31,38 @@ public class ReservationManager {
      * Yeni bir rezervasyon oluşturur, koltuğu kapatır ve dosyaya kaydeder.
      */
     
+    /**
+     * Uçuş bilgileri (ID, Saat, Tarih vs.) değiştiğinde,
+     * bu uçuştur yapılmış tüm rezervasyonları da günceller.
+     * * @param oldFlightNum - Uçuşun eski numarası (Rezervasyonları bulmak için)
+     * @param newFlightData - Yeni uçuş nesnesi (Güncellemek için)
+     */
+    public void updateFlightInfoInReservations(String oldFlightNum, Flight newFlightData) {
+        boolean updated = false;
+        
+        for (Reservation res : reservations) {
+            // Rezervasyondaki uçuşun numarası, değiştirilen uçuşun eski numarasıyla eşleşiyor mu?
+            if (res.getFlight().getFlightNum().equals(oldFlightNum)) {
+                
+                // Eşleşiyorsa, rezervasyonun içindeki Flight nesnesini yenisiyle değiştir
+                res.setFlight(newFlightData);
+                
+                // Eğer koltuk nesnesi de Flight'a bağlıysa, onu da yeni uçaktan çekmek gerekebilir.
+                // Ancak basitlik adına Flight nesnesini değiştirmek genelde yeterlidir (tarih/saat için).
+                // Daha gelişmiş versiyonda koltuk referansını da yenileyebilirsin:
+                // Seat newSeat = newFlightData.getPlane().getSeat(res.getSeat().getSeatNum());
+                // res.setSeat(newSeat);
+                
+                updated = true;
+            }
+        }
+
+        if (updated) {
+            FileManager.saveData(FILE_NAME, this.reservations); // Dosyayı kaydet
+            System.out.println("İlgili rezervasyonlar yeni uçuş bilgileriyle güncellendi.");
+        }
+    }
+    
     public Reservation makeReservation(Flight f, Passenger p, Seat s) {
         if (s.isReserved()) {
             System.out.println("Hata: Seçilen koltuk (" + s.getSeatNum() + ") zaten dolu!");
@@ -60,26 +92,35 @@ public class ReservationManager {
     /**
      * Rezervasyon koduna göre iptal işlemi yapar ve koltuğu boşa çıkarır.
      */
-    public boolean cancelReservation(String resCode) {
+    public boolean cancelReservation(String resCode, FlightManager flightManager) {
         for (Reservation res : reservations) {
-            // Kodu bul ve eğer zaten iptal edilmemişse işlem yap
-            if (res.getReservationCode().equals(resCode) && res.isActive()) {
+            if (res.getReservationCode().equals(resCode)) {
+                // 1. Rezervasyonu pasif yap
+                res.setActive(false);
                 
-                // 1. Rezervasyonu pasife çek
-                res.cancel();
+                // 2. KOLTUĞU BOŞA ÇIKAR (Kritik Kısım Burası!)
+                // Rezervasyonun içindeki uçuş/koltuk bilgisi eski olabilir.
+                // Bu yüzden FlightManager'dan güncel "Master" veriyi çekiyoruz.
+                String flightNum = res.getFlight().getFlightNum();
+                String seatNum = res.getSeat().getSeatNum();
                 
-                // 2. Koltuğu tekrar "BOŞ" yap (Kritik Adım)
-                if (res.getSeat() != null) {
-                    res.getSeat().setReserveStatus(false);
+                Flight masterFlight = flightManager.getFlightByNum(flightNum);
+                if (masterFlight != null) {
+                    Seat masterSeat = masterFlight.getPlane().getSeat(seatNum);
+                    if (masterSeat != null) {
+                        masterSeat.setReserveStatus(false); // Koltuğu BOŞ yap
+                        
+                        // Uçuş dosyasını güncelle (flights.dat güncellenir)
+                        flightManager.updateFlight(masterFlight); 
+                        System.out.println("Koltuk boşa çıkarıldı: " + seatNum);
+                    }
                 }
                 
-                // 3. Dosyayı güncelle
+                // 3. Rezervasyon dosyasını kaydet
                 FileManager.saveData(FILE_NAME, this.reservations);
-                System.out.println("Rezervasyon iptal edildi: " + resCode);
                 return true;
             }
         }
-        System.out.println("İptal edilecek aktif rezervasyon bulunamadı: " + resCode);
         return false;
     }
     

@@ -260,39 +260,77 @@ public class PassengerDashboardGUI extends JFrame {
         Flight flight = flightManager.getFlightByNum(flightNum);
         if (flight == null) return;
         
-        JPanel seatPanel = new JPanel(new GridLayout(0, 6, 5, 5)); // 6 Sütunlu (A-F)
+        // 1. AYARLAR
+        int businessRows = 5; // İlk 5 sıra Business olsun (Sarı)
+        
+        // 2. PANEL YAPISI (7 Sütun: 3 Koltuk + 1 Boşluk + 3 Koltuk)
+        JPanel seatPanel = new JPanel(new GridLayout(0, 7, 5, 5)); 
+        seatPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // Kenar boşluğu
+        
         Map<String, Seat> seats = flight.getPlane().getSeats();
-        
-        // Koltukları (örneğin 30 sıra) döngüye sokup buton olarak ekleyelim
-        // Not: Map sırasız olabilir, basitlik için 1'den 30'a kadar döneceğiz.
-        // Uçağın kapasitesine göre dinamik de yapabiliriz ama şimdilik standart 30 sıra varsayalım.
-        
         int rows = flight.getPlane().getCapacity() / 6; 
         
         for (int i = 1; i <= rows; i++) {
-            for (char c = 'A'; c <= 'F'; c++) {
-                String seatCode = i + "" + c;
-                Seat seat = seats.get(seatCode);
-                
-                JButton seatBtn = new JButton(seatCode);
-                seatBtn.setPreferredSize(new Dimension(50, 40));
-                seatBtn.setFont(new Font("Arial", Font.PLAIN, 10));
-                
-                if (seat != null && seat.isReserved()) {
-                    seatBtn.setBackground(new Color(231, 76, 60)); // Dolu (Kırmızı)
-                    seatBtn.setForeground(Color.WHITE);
-                    seatBtn.setEnabled(false); // Tıklanamaz
-                } else {
-                    seatBtn.setBackground(new Color(46, 204, 113)); // Boş (Yeşil)
-                    seatBtn.setForeground(Color.BLACK);
-                    // Tıklayınca text kutusuna yazsın
-                    seatBtn.addActionListener(e -> txtSeatSelect.setText(seatCode));
-                }
-                seatPanel.add(seatBtn);
-            }
+            // --- SOL TARA (A, B, C) ---
+            addSeatToPanel(seatPanel, i, 'A', seats, businessRows);
+            addSeatToPanel(seatPanel, i, 'B', seats, businessRows);
+            addSeatToPanel(seatPanel, i, 'C', seats, businessRows);
+            
+            // --- KORİDOR BOŞLUĞU (Görünmez Panel) ---
+            JLabel aisle = new JLabel("", SwingConstants.CENTER);
+            aisle.setPreferredSize(new Dimension(30, 40)); // Boşluk genişliği
+            // İstersen buraya sıra numarasını yazdırabilirsin:
+            // aisle.setText(String.valueOf(i)); 
+            seatPanel.add(aisle);
+            
+            // --- SAĞ TARAF (D, E, F) ---
+            addSeatToPanel(seatPanel, i, 'D', seats, businessRows);
+            addSeatToPanel(seatPanel, i, 'E', seats, businessRows);
+            addSeatToPanel(seatPanel, i, 'F', seats, businessRows);
         }
         
-        JOptionPane.showMessageDialog(this, seatPanel, flightNum + " Koltuk Durumu", JOptionPane.PLAIN_MESSAGE);
+        // 3. SCROLL PANE (Aşağıyı görebilmek için kaydırma çubuğu)
+        JScrollPane scrollPane = new JScrollPane(seatPanel);
+        scrollPane.setPreferredSize(new Dimension(500, 500)); // Pencere boyutu sabitlenir
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16); // Tekerlek hızı artırıldı
+        scrollPane.setBorder(null); // Çerçeve kirliliğini kaldır
+
+        // 4. GÖSTER
+        JOptionPane.showMessageDialog(this, scrollPane, flightNum + " Detaylı Koltuk Haritası", JOptionPane.PLAIN_MESSAGE);
+    }
+    
+    private void addSeatToPanel(JPanel panel, int row, char col, Map<String, Seat> seats, int businessRowLimit) {
+        String seatCode = row + "" + col;
+        Seat seat = seats.get(seatCode);
+        
+        JButton seatBtn = new JButton(seatCode);
+        seatBtn.setPreferredSize(new Dimension(55, 45));
+        seatBtn.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        seatBtn.setFocusPainted(false); // Tıklayınca oluşan çirkin çerçeveyi kaldır
+        
+        if (seat != null && seat.isReserved()) {
+            // --- DOLU KOLTUK (Kırmızı) ---
+            seatBtn.setBackground(new Color(231, 76, 60)); 
+            seatBtn.setForeground(Color.WHITE);
+            seatBtn.setEnabled(false); // Tıklanamaz
+        } else {
+            // --- BOŞ KOLTUK ---
+            if (row <= businessRowLimit) {
+                // BUSINESS (Sarı)
+                seatBtn.setBackground(new Color(241, 196, 15)); // Altın Sarısı
+                seatBtn.setForeground(Color.BLACK);
+                seatBtn.setToolTipText("Business Class");
+            } else {
+                // EKONOMİ (Yeşil)
+                seatBtn.setBackground(new Color(46, 204, 113)); // Zümrüt Yeşili
+                seatBtn.setForeground(Color.WHITE);
+                seatBtn.setToolTipText("Economy Class");
+            }
+            
+            // Tıklayınca kutuya yazma aksiyonu
+            seatBtn.addActionListener(e -> txtSeatSelect.setText(seatCode));
+        }
+        panel.add(seatBtn);
     }
 
     // --- MANTIK METODLARI (ESKİ KODUN AYNISI) ---
@@ -369,13 +407,17 @@ public class PassengerDashboardGUI extends JFrame {
     }
 
     private void handleCancel(String resCode) {
-        boolean success = resManager.cancelReservation(resCode);
+        // ARTIK BURAYA "flightManager" NESNESİNİ DE GÖNDERİYORUZ:
+        boolean success = resManager.cancelReservation(resCode, flightManager);
+        
         if (success) {
-            JOptionPane.showMessageDialog(this, "İptal Edildi.");
-            loadMyReservations();
-            loadFlights(); 
+            JOptionPane.showMessageDialog(this, "Rezervasyon iptal edildi ve koltuk boşa çıkarıldı.");
+            
+            // Listeleri Yenile
+            loadMyReservations(); // Durum "İPTAL" olacak
+            loadFlights();        // Boş koltuk sayısı 1 artacak
         } else {
-            JOptionPane.showMessageDialog(this, "İptal edilemedi.");
+            JOptionPane.showMessageDialog(this, "İptal işlemi başarısız oldu.");
         }
     }
 }
