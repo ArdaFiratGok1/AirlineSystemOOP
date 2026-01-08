@@ -3,6 +3,8 @@ package ScenariosModule;
 import FlightManagementModule.Plane;
 import FlightManagementModule.Seat;
 
+import javax.swing.JTextArea;
+import javax.swing.SwingUtilities;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -10,117 +12,106 @@ import java.util.concurrent.TimeUnit;
 
 public class Scenario1 {
 
-    // Uçağımız (Ortak Kaynak)
-    private static Plane plane = new Plane("SIM-001", "Boeing 737", 180);
-    
-    // Senaryo Ayarları
-    private static final int PASSENGER_COUNT = 90; // 90 Yolcu saldıracak
-    private static final boolean IS_SYNCHRONIZED = true; // TRUE yaparsan düzgün çalışır, FALSE yaparsan patlar
+    // GUI için Simülasyon Metodu
+    // isSynchronized: TRUE ise Güvenli (Synchronized), FALSE ise Güvensiz (Race Condition) çalışır.
+    public static void runSimulationForGUI(JTextArea logArea, boolean isSynchronized) {
+        
+        // Her test için sıfır, temiz bir uçak oluşturuyoruz
+        Plane simulationPlane = new Plane("SIM-TEST", "Boeing 737", 180);
+        int passengerCount = 90; // 90 Yolcu saldıracak
 
-    public static void main(String[] args) {
-        System.out.println("=== THREAD SİMÜLASYONU BAŞLIYOR ===");
-        System.out.println("Mod: " + (IS_SYNCHRONIZED ? "SENKRONİZE (Güvenli)" : "ASENKRON (Güvensiz)"));
-        System.out.println("Yolcu Sayısı: " + PASSENGER_COUNT);
-        System.out.println("Toplam Koltuk: 180");
-        System.out.println("-----------------------------------");
+        SwingUtilities.invokeLater(() -> {
+            logArea.setText(""); // Ekranı temizle
+            logArea.append(">> SİMÜLASYON BAŞLATILIYOR...\n");
+            logArea.append(">> MOD: " + (isSynchronized ? "SAFE (GÜVENLİ - SYNCHRONIZED)" : "UNSAFE (GÜVENSİZ - RACE CONDITION)") + "\n");
+            logArea.append(">> Yolcu Sayısı: " + passengerCount + " | Hedef: Rastgele Koltuk Kapmaca\n\n");
+        });
 
-        // 90 tane Thread'i yönetecek bir havuz oluşturuyoruz
-        ExecutorService executor = Executors.newFixedThreadPool(PASSENGER_COUNT);
+        ExecutorService executor = Executors.newFixedThreadPool(passengerCount);
 
-        long startTime = System.currentTimeMillis();
+        for (int i = 0; i < passengerCount; i++) {
+            final int pId = i + 1;
+            executor.execute(() -> {
+                boolean seated = false;
+                Random random = new Random();
 
-        // 90 Tane Yolcu Görevi Başlat
-        for (int i = 0; i < PASSENGER_COUNT; i++) {
-            executor.execute(new PassengerTask(i + 1));
+                // Yolcu oturana kadar (veya yer bulamayana kadar) dener
+                // Amaç: Race condition yaratmak için aynı anda saldırmalarını sağlamak
+                while (!seated) {
+                    try {
+                        // Rastgele koltuk seç: 1A ... 30F arası
+                        String seatNum = (random.nextInt(30) + 1) + "" + (char)('A' + random.nextInt(6));
+                        
+                        // --- KRİTİK NOKTA ---
+                        if (isSynchronized) {
+                            // GÜVENLİ MOD: Uçağı kilitliyoruz (Lock)
+                            synchronized (simulationPlane) {
+                                seated = tryBookSeat(simulationPlane, seatNum, pId, logArea, false);
+                            }
+                        } else {
+                            // GÜVENSİZ MOD: Kilitleme yok, herkes aynı anda erişiyor
+                            // Hata oluşsun diye yapay gecikme (sleep) ekliyoruz
+                            seated = tryBookSeat(simulationPlane, seatNum, pId, logArea, true);
+                        }
+                        
+                        // Eğer oturamadıysa döngü devam eder, başka koltuk dener...
+                        // Sonsuz döngüye girmemesi için basit bir fren:
+                        if (!seated) Thread.sleep(10); 
+
+                    } catch (Exception e) {}
+                }
+            });
         }
 
-        // Havuzu kapat ve bitmesini bekle
         executor.shutdown();
-        try {
-            // Tüm işlemlerin bitmesi için en fazla 10 saniye bekle
-            executor.awaitTermination(10, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
-        long endTime = System.currentTimeMillis();
-
-        // --- SONUÇLARI SAY ---
-        int occupiedCount = 0;
-        // Plane sınıfını Map yaptığımız için values() ile dönüyoruz
-        for (Seat s : plane.getSeats().values()) {
-            if (s.isReserved()) {
-                occupiedCount++;
+        
+        // Sonuçları Bekle ve Yazdır
+        new Thread(() -> {
+            try {
+                executor.awaitTermination(10, TimeUnit.SECONDS);
+                
+                // Toplam dolu koltuk sayısını hesapla
+                long totalOccupied = simulationPlane.getSeats().values().stream().filter(Seat::isReserved).count();
+                
+                SwingUtilities.invokeLater(() -> {
+                    logArea.append("\n--------------------------------\n");
+                    logArea.append("🏁 SİMÜLASYON BİTTİ!\n");
+                    logArea.append("Beklenen Doluluk: " + passengerCount + "\n");
+                    logArea.append("Gerçekleşen Doluluk: " + totalOccupied + "\n");
+                    
+                    if (totalOccupied == passengerCount) {
+                        logArea.append("✅ SONUÇ: BAŞARILI (Veri kaybı yok)\n");
+                    } else {
+                        logArea.append("❌ SONUÇ: HATALI (Veri kaybı / Çakışma var!)\n");
+                        logArea.append(">> " + (passengerCount - totalOccupied) + " yolcu bilet aldığını sandı ama alamadı.\n");
+                    }
+                });
+                
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
-        }
-
-        System.out.println("-----------------------------------");
-        System.out.println("SİMÜLASYON BİTTİ!");
-        System.out.println("Geçen Süre: " + (endTime - startTime) + " ms");
-        System.out.println("Beklenen Dolu Koltuk: " + PASSENGER_COUNT);
-        System.out.println("Gerçekleşen Dolu Koltuk: " + occupiedCount);
-
-        if (occupiedCount == PASSENGER_COUNT) {
-            System.out.println("SONUÇ:  BAŞARILI (Veri kaybı yok)");
-        } else {
-            System.out.println("SONUÇ:  HATALI (Race Condition oluştu!)");
-            System.out.println("Fark: " + (PASSENGER_COUNT - occupiedCount) + " yolcu koltuğa oturduğunu sandı ama oturamadı.");
-        }
+        }).start();
     }
 
-    // --- YOLCU GÖREVİ (THREAD CLASS) ---
-    static class PassengerTask implements Runnable {
-        private int passengerId;
-        private Random random = new Random();
-
-        public PassengerTask(int id) {
-            this.passengerId = id;
-        }
-
-        @Override
-        public void run() {
-            boolean seated = false;
-
-            // Yolcu oturana kadar denesin (veya pes etsin)
-            // Döngü kuruyoruz çünkü rastgele seçtiği koltuk dolu olabilir
-            while (!seated) {
-                // 1. RASTGELE KOLTUK SEÇİMİ (Random)
-                int row = random.nextInt(30) + 1; // 1-30 arası
-                char col = (char) ('A' + random.nextInt(6)); // A-F arası
-                String seatNum = row + "" + col; // Örn: "5C"
-
-                // 2. THREAD MANTIĞI (Sync vs Async)
-                if (IS_SYNCHRONIZED) {
-                    // KİLİTLEME: Sadece tek bir thread bu bloğa girebilir
-                    synchronized (plane) {
-                        seated = tryToBook(seatNum);
-                    }
-                } else {
-                    // KİLİTLEME YOK: Herkes aynı anda saldırır
-                    seated = tryToBook(seatNum);
-                }
-                
-                // Eğer oturamadıysa döngü başa döner, yeni random koltuk seçer
-            }
-        }
-
-        // Koltuk kapma işlemi
-        private boolean tryToBook(String seatNum) {
-            Seat seat = plane.getSeat(seatNum);
+    // Yardımcı Metod: Koltuk Rezerve Etme Denemesi
+    private static boolean tryBookSeat(Plane plane, String seatNum, int pId, JTextArea logArea, boolean addDelay) {
+        Seat seat = plane.getSeat(seatNum);
+        
+        // 1. Kontrol (Check)
+        if (seat != null && !seat.isReserved()) {
             
-            // Eğer koltuk varsa ve boşsa
-            if (seat != null && !seat.isReserved()) {
-                
-                // ASENKRON HATAYI TETİKLEMEK İÇİN GECİKME
-                if (!IS_SYNCHRONIZED) {
-                    try { Thread.sleep(1); } catch (InterruptedException e) {}//rezerve etme 1 milisaniye geciktiriyoruz, bu surede koltuk hala bos gozukuyor
-                }
-                
-                seat.setReserveStatus(true); // Rezerve et
-                // System.out.println("Yolcu " + passengerId + " -> " + seatNum + " koltuğunu kaptı.");
-                return true;
+            // Unsafe modda hatayı garantilemek için araya yapay gecikme sokuyoruz
+            // Bu sırada başka bir thread de buraya girip koltuğu boş sanacak!
+            if (addDelay) {
+                try { Thread.sleep(5); } catch (InterruptedException e) {}
             }
-            return false; // Doluysa veya yoksa başarısız
+
+            // 2. İşlem (Act)
+            seat.setReserveStatus(true);
+            
+            SwingUtilities.invokeLater(() -> logArea.append("Yolcu " + pId + " -> " + seatNum + " koltuğunu aldı.\n"));
+            return true;
         }
+        return false;
     }
 }

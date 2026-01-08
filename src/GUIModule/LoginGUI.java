@@ -1,57 +1,105 @@
 package GUIModule;
 
+import com.formdev.flatlaf.FlatLightLaf;
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import GUIModule.UserManager; 
 
 public class LoginGUI extends JFrame {
-    
+
     private JTextField userField;
     private JPasswordField passField;
-    private JButton loginButton;
     private UserManager userManager;
 
     public LoginGUI() {
-        userManager = new UserManager(); 
+        userManager = new UserManager();
+        
+        // --- MODERN TEMA (FlatLaf) ---
+        try {
+            FlatLightLaf.setup();
+            UIManager.put("Component.arc", 15);
+            UIManager.put("Button.arc", 15);
+            UIManager.put("TextComponent.arc", 15);
+        } catch (Exception e) {}
 
-        setTitle("Giriş Ekranı - Havayolu Sistemi");
-        setSize(400, 300);
+        setTitle("SkyTech - Giriş Ekranı");
+        setSize(450, 520);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null); 
-        setLayout(new BorderLayout());
+        setLocationRelativeTo(null);
+        setResizable(false);
 
-        // --- Başlık ---
-        JLabel titleLabel = new JLabel("HOŞGELDİNİZ", SwingConstants.CENTER);
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 24));
-        titleLabel.setBorder(BorderFactory.createEmptyBorder(20, 0, 20, 0));
-        add(titleLabel, BorderLayout.NORTH);
+        // Arka Plan Rengi
+        JPanel mainPanel = new JPanel(new GridBagLayout());
+        mainPanel.setBackground(new Color(245, 247, 250)); 
+        setContentPane(mainPanel);
 
-        // --- Form Paneli ---
-        // GridLayout(Satır, Sütun, YatayBoşluk, DikeyBoşluk)
-        JPanel formPanel = new JPanel(new GridLayout(3, 1, 10, 10)); // Düzeni değiştirdim, daha düzgün durur
-        formPanel.setBorder(BorderFactory.createEmptyBorder(10, 50, 10, 50));
+        // --- ORTA KART (BEYAZ KUTU) ---
+        JPanel cardPanel = new JPanel(new GridBagLayout());
+        cardPanel.setBackground(Color.WHITE);
+        cardPanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(220, 220, 220), 1),
+            new EmptyBorder(40, 40, 40, 40)
+        ));
 
-        // 1. Kullanıcı Adı
-        formPanel.add(new JLabel("Kullanıcı Adı:"));
-        userField = new JTextField();
-        formPanel.add(userField); // <-- BU SATIR EKSİKTİ, EKLENDİ!
-        
-        // 2. Şifre
-        formPanel.add(new JLabel("Şifre:"));
-        passField = new JPasswordField();
-        formPanel.add(passField); // <-- BU SATIR EKSİKTİ, EKLENDİ!
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 0, 10, 0);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.gridx = 0; 
 
-        add(formPanel, BorderLayout.CENTER);
+        // 1. Logo ve Başlık
+        JLabel lblIcon = new JLabel("✈️", SwingConstants.CENTER);
+        lblIcon.setFont(new Font("Segoe UI", Font.PLAIN, 50));
+        gbc.gridy = 0;
+        cardPanel.add(lblIcon, gbc);
 
-        // --- Buton Paneli ---
-        JPanel buttonPanel = new JPanel();
-        loginButton = new JButton("GİRİŞ YAP");
-        loginButton.setPreferredSize(new Dimension(150, 40));
-        loginButton.setBackground(new Color(70, 130, 180)); 
+        JLabel lblTitle = new JLabel("SKYTECH GİRİŞ", SwingConstants.CENTER);
+        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 24));
+        lblTitle.setForeground(new Color(44, 62, 80));
+        gbc.gridy = 1;
+        cardPanel.add(lblTitle, gbc);
+
+        // 2. Kullanıcı Adı
+        gbc.gridy = 2;
+        gbc.insets = new Insets(20, 0, 5, 0);
+        JLabel lblUser = new JLabel("Kullanıcı Adı");
+        lblUser.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lblUser.setForeground(Color.GRAY);
+        cardPanel.add(lblUser, gbc);
+
+        userField = new JTextField(15);
+        userField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        userField.putClientProperty("JTextField.placeholderText", "Örn: yolcu1");
+        gbc.gridy = 3;
+        gbc.insets = new Insets(0, 0, 10, 0);
+        cardPanel.add(userField, gbc);
+
+        // 3. Şifre
+        gbc.gridy = 4;
+        gbc.insets = new Insets(5, 0, 5, 0);
+        JLabel lblPass = new JLabel("Şifre");
+        lblPass.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lblPass.setForeground(Color.GRAY);
+        cardPanel.add(lblPass, gbc);
+
+        passField = new JPasswordField(15);
+        passField.putClientProperty("JTextField.placeholderText", "******");
+        gbc.gridy = 5;
+        gbc.insets = new Insets(0, 0, 20, 0);
+        cardPanel.add(passField, gbc);
+
+        // 4. Giriş Butonu
+        JButton loginButton = new JButton("GÜVENLİ GİRİŞ YAP");
+        loginButton.setPreferredSize(new Dimension(200, 45));
+        loginButton.setBackground(new Color(52, 152, 219)); // SkyTech Mavi
         loginButton.setForeground(Color.WHITE);
+        loginButton.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        loginButton.setFocusPainted(false);
         
-        buttonPanel.add(loginButton);
-        buttonPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 20, 0));
-        add(buttonPanel, BorderLayout.SOUTH);
+        gbc.gridy = 6;
+        cardPanel.add(loginButton, gbc);
+
+        mainPanel.add(cardPanel);
 
         // --- Aksiyonlar ---
         loginButton.addActionListener(e -> handleLogin());
@@ -67,22 +115,19 @@ public class LoginGUI extends JFrame {
         User user = userManager.login(username, password);
 
         if (user != null) {
-            JOptionPane.showMessageDialog(this, 
-                "Giriş Başarılı!\nHoşgeldin: " + user.getUsername() + "\nRol: " + user.getRole());
-            
-            // Kullanıcıyı içeri alıp Login ekranını kapatıyoruz
             this.dispose(); 
             
-            // Rolüne göre ilgili paneli aç
-            if (user.getRole().equalsIgnoreCase("ADMIN")) {
-                 new AdminDashboardGUI(); // Birazdan yazacağız
+            // Rol Kontrolü (Daha önce konuştuğumuz gibi)
+            String role = user.getRole().toUpperCase();
+            if (role.equals("ADMIN") || role.equals("STAFF")) {
+                 new AdminDashboardGUI(user); 
             } else {
-                 new PassengerDashboardGUI(user); // Birazdan yazacağız
+                 new PassengerDashboardGUI(user); 
             }
             
         } else {
             JOptionPane.showMessageDialog(this, 
-                "Hatalı Kullanıcı Adı veya Şifre!", "Hata", JOptionPane.ERROR_MESSAGE);
+                "Hatalı Kullanıcı Adı veya Şifre!", "Giriş Hatası", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -90,5 +135,3 @@ public class LoginGUI extends JFrame {
         SwingUtilities.invokeLater(() -> new LoginGUI());
     }
 }
-
-//Dolu ve boş koltuklar bir panelde gözükmesi

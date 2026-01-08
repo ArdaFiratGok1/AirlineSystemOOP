@@ -1,22 +1,24 @@
 package GUIModule;
 
+import com.formdev.flatlaf.FlatLightLaf;
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableRowSorter;
 import java.awt.*;
-import java.util.List;
+import java.util.Map;
 
 import FlightManagementModule.Flight;
 import FlightManagementModule.Seat;
 import ReservationAndTicketingModule.Passenger;
 import ReservationAndTicketingModule.Reservation;
-import ServiceAndManagersModule.CalculatePrice;
 import ServiceAndManagersModule.FlightManager;
 import ServiceAndManagersModule.ReservationManager;
 import ServiceAndManagersModule.SeatManager;
 
 public class PassengerDashboardGUI extends JFrame {
 
-    private User currentUser; // Giriş yapan kullanıcı
+    private User currentUser;
     private FlightManager flightManager;
     private ReservationManager resManager;
     private SeatManager seatManager;
@@ -35,64 +37,177 @@ public class PassengerDashboardGUI extends JFrame {
         resManager = new ReservationManager();
         seatManager = new SeatManager();
 
-        setTitle("YOLCU PANELİ - Hoşgeldin " + user.getUsername());
-        setSize(900, 600);
+        // TEMA AYARLARI
+        setupTheme();
+
+        setTitle("✈️ Yolcu Paneli - Hoşgeldiniz, " + user.getUsername());
+        setSize(1000, 700);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
-        // --- SEKMELİ YAPI (Tabs) ---
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        setContentPane(mainPanel);
+
+        // --- 1. ÜST HEADER ---
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setBackground(new Color(44, 62, 80)); // Koyu Lacivert
+        headerPanel.setBorder(new EmptyBorder(15, 25, 15, 25));
+
+        JLabel lblTitle = new JLabel("SkyTech Yolcu İşlemleri");
+        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 24));
+        lblTitle.setForeground(Color.WHITE);
+        
+        JLabel lblUser = new JLabel("👤 " + currentUser.getUsername());
+        lblUser.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+        lblUser.setForeground(new Color(200, 200, 200));
+
+        headerPanel.add(lblTitle, BorderLayout.WEST);
+        headerPanel.add(lblUser, BorderLayout.EAST);
+        mainPanel.add(headerPanel, BorderLayout.NORTH);
+
+        // --- 2. SEKMELER ---
         JTabbedPane tabbedPane = new JTabbedPane();
+        tabbedPane.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        tabbedPane.setBorder(new EmptyBorder(10, 10, 10, 10));
 
-        // SEKME 1: Bilet Alma
-        JPanel bookingPanel = createBookingPanel();
-        tabbedPane.addTab("Uçuş Ara & Bilet Al", bookingPanel);
+        tabbedPane.addTab("  🔍 Uçuş Ara & Bilet Al  ", createBookingPanel());
+        tabbedPane.addTab("  🎫 Rezervasyonlarım  ", createMyReservationsPanel());
 
-        // SEKME 2: Rezervasyonlarım
-        JPanel myResPanel = createMyReservationsPanel();
-        tabbedPane.addTab("Rezervasyonlarım / İptal", myResPanel);
+        mainPanel.add(tabbedPane, BorderLayout.CENTER);
+        
+        // ÇIKIŞ BUTONU
+        JButton btnLogout = new JButton("ÇIKIŞ YAP");
+        btnLogout.setBackground(new Color(231, 76, 60));
+        btnLogout.setForeground(Color.WHITE);
+        btnLogout.addActionListener(e -> {
+            dispose();
+            new LoginGUI();
+        });
+        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        bottomPanel.add(btnLogout);
+        mainPanel.add(bottomPanel, BorderLayout.SOUTH);
 
-        add(tabbedPane);
         setVisible(true);
+    }
+
+    private void setupTheme() {
+        try {
+            FlatLightLaf.setup();
+            UIManager.put("Component.arc", 12);
+            UIManager.put("Button.arc", 12);
+            UIManager.put("Table.rowHeight", 30);
+            UIManager.put("Table.showHorizontalLines", true);
+            UIManager.put("Table.showVerticalLines", false);
+            UIManager.put("Table.selectionBackground", new Color(52, 152, 219));
+            UIManager.put("Table.selectionForeground", Color.WHITE);
+        } catch (Exception e) {}
     }
 
     // --- PANEL 1: UÇUŞ LİSTESİ VE REZERVASYON ---
     private JPanel createBookingPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
+        JPanel panel = new JPanel(new BorderLayout(15, 15));
+        panel.setOpaque(false);
+
+        // Arama Çubuğu (Bonus Özellik)
+        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JTextField txtSearch = new JTextField(20);
+        txtSearch.putClientProperty("JTextField.placeholderText", "Şehir veya Uçuş No ara...");
+        searchPanel.add(new JLabel("🔍 Filtrele: "));
+        searchPanel.add(txtSearch);
+        panel.add(searchPanel, BorderLayout.NORTH);
 
         // 1. Uçuş Tablosu
         String[] cols = {"Uçuş No", "Rota", "Tarih", "Saat", "Boş Koltuk"};
-        flightTableModel = new DefaultTableModel(cols, 0);
+        flightTableModel = new DefaultTableModel(cols, 0) {
+            public boolean isCellEditable(int row, int col) { return false; }
+        };
         JTable table = new JTable(flightTableModel);
+        table.setFillsViewportHeight(true);
+        table.setShowGrid(false);
+        
         loadFlights(); // Verileri yükle
 
         panel.add(new JScrollPane(table), BorderLayout.CENTER);
+        
+        // Canlı Arama Mantığı
+        TableRowSorter<DefaultTableModel> sorter = new TableRowSorter<>(flightTableModel);
+        table.setRowSorter(sorter);
+        txtSearch.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            public void insertUpdate(javax.swing.event.DocumentEvent e) { filter(); }
+            public void removeUpdate(javax.swing.event.DocumentEvent e) { filter(); }
+            public void changedUpdate(javax.swing.event.DocumentEvent e) { filter(); }
+            private void filter() {
+                String text = txtSearch.getText();
+                if (text.trim().length() == 0) sorter.setRowFilter(null);
+                else sorter.setRowFilter(RowFilter.regexFilter("(?i)" + text));
+            }
+        });
 
-        // 2. Alt Kısım (Satın Alma İşlemi)
-        JPanel bottomPanel = new JPanel(new FlowLayout());
-        bottomPanel.setBorder(BorderFactory.createTitledBorder("Rezervasyon Yap"));
+        // 2. Alt Kısım (Satın Alma İşlemi - Modernize Edildi)
+        JPanel bottomPanel = new JPanel(new GridBagLayout());
+        bottomPanel.setBackground(new Color(235, 245, 251)); // Açık Mavi Arka Plan
+        bottomPanel.setBorder(BorderFactory.createTitledBorder(
+            BorderFactory.createMatteBorder(2, 2, 2, 2, new Color(52, 152, 219)), " Rezervasyon İşlemleri "
+        ));
 
-        txtSeatSelect = new JTextField(5);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        txtSeatSelect = new JTextField(8);
         chkBaggage = new JCheckBox("Ekstra Bagaj (+500 TL)");
-        JButton btnBook = new JButton("Seçili Uçuşa Rezervasyon Yap");
-        btnBook.setBackground(new Color(70, 130, 180));
-        btnBook.setForeground(Color.WHITE);
+        chkBaggage.setOpaque(false);
+        
+        JButton btnShowSeats = new JButton("👁️ Koltuk Durumlarını Gör");
+        btnShowSeats.setBackground(new Color(241, 196, 15)); // Sarı
+        btnShowSeats.setForeground(Color.BLACK);
 
-        bottomPanel.add(new JLabel("İstenen Koltuk (Örn: 1A):"));
-        bottomPanel.add(txtSeatSelect);
-        bottomPanel.add(chkBaggage);
-        bottomPanel.add(btnBook);
+        JButton btnBook = new JButton("REZERVASYONU TAMAMLA");
+        btnBook.setBackground(new Color(39, 174, 96)); // Yeşil
+        btnBook.setForeground(Color.WHITE);
+        btnBook.setFont(new Font("Segoe UI", Font.BOLD, 13));
+
+        // Layout Yerleşimi
+        gbc.gridx = 0; gbc.gridy = 0;
+        bottomPanel.add(new JLabel("İstenen Koltuk (Örn: 1A):"), gbc);
+        
+        gbc.gridx = 1;
+        bottomPanel.add(txtSeatSelect, gbc);
+        
+        gbc.gridx = 2;
+        bottomPanel.add(btnShowSeats, gbc);
+
+        gbc.gridx = 0; gbc.gridy = 1;
+        bottomPanel.add(chkBaggage, gbc);
+        
+        gbc.gridx = 1; gbc.gridwidth = 2;
+        bottomPanel.add(btnBook, gbc);
 
         panel.add(bottomPanel, BorderLayout.SOUTH);
 
-        // Buton Aksiyonu
+        // --- AKSİYONLAR ---
+        
+        // Koltuk Haritasını Göster Butonu
+        btnShowSeats.addActionListener(e -> {
+            int selectedRow = table.getSelectedRow();
+            if (selectedRow == -1) {
+                JOptionPane.showMessageDialog(this, "Önce listeden bir uçuş seçiniz!");
+                return;
+            }
+            int modelRow = table.convertRowIndexToModel(selectedRow);
+            String flightNum = (String) flightTableModel.getValueAt(modelRow, 0);
+            showSeatMap(flightNum);
+        });
+
+        // Rezervasyon Yap Butonu
         btnBook.addActionListener(e -> {
             int selectedRow = table.getSelectedRow();
             if (selectedRow == -1) {
                 JOptionPane.showMessageDialog(this, "Lütfen tablodan bir uçuş seçin!");
                 return;
             }
-
-            String flightNum = (String) flightTableModel.getValueAt(selectedRow, 0);
+            int modelRow = table.convertRowIndexToModel(selectedRow);
+            String flightNum = (String) flightTableModel.getValueAt(modelRow, 0);
             String seatNum = txtSeatSelect.getText().trim().toUpperCase();
 
             handleBooking(flightNum, seatNum);
@@ -103,20 +218,25 @@ public class PassengerDashboardGUI extends JFrame {
 
     // --- PANEL 2: REZERVASYONLARIM ---
     private JPanel createMyReservationsPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
+        JPanel panel = new JPanel(new BorderLayout(15, 15));
+        panel.setOpaque(false);
 
         String[] cols = {"Rezervasyon Kodu", "Uçuş", "Koltuk", "Durum"};
         resTableModel = new DefaultTableModel(cols, 0);
         JTable table = new JTable(resTableModel);
+        table.setFillsViewportHeight(true);
+        table.setShowGrid(false);
+        
         loadMyReservations();
 
         panel.add(new JScrollPane(table), BorderLayout.CENTER);
 
         // İptal Butonu
-        JPanel bottomPanel = new JPanel();
-        JButton btnCancel = new JButton("Seçili Rezervasyonu İptal Et");
-        btnCancel.setBackground(Color.RED);
+        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton btnCancel = new JButton("SEÇİLİ REZERVASYONU İPTAL ET");
+        btnCancel.setBackground(new Color(231, 76, 60)); // Kırmızı
         btnCancel.setForeground(Color.WHITE);
+        btnCancel.setFont(new Font("Segoe UI", Font.BOLD, 12));
 
         bottomPanel.add(btnCancel);
         panel.add(bottomPanel, BorderLayout.SOUTH);
@@ -134,8 +254,48 @@ public class PassengerDashboardGUI extends JFrame {
 
         return panel;
     }
+    
+    // --- YENİ ÖZELLİK: GÖRSEL KOLTUK HARİTASI ---
+    private void showSeatMap(String flightNum) {
+        Flight flight = flightManager.getFlightByNum(flightNum);
+        if (flight == null) return;
+        
+        JPanel seatPanel = new JPanel(new GridLayout(0, 6, 5, 5)); // 6 Sütunlu (A-F)
+        Map<String, Seat> seats = flight.getPlane().getSeats();
+        
+        // Koltukları (örneğin 30 sıra) döngüye sokup buton olarak ekleyelim
+        // Not: Map sırasız olabilir, basitlik için 1'den 30'a kadar döneceğiz.
+        // Uçağın kapasitesine göre dinamik de yapabiliriz ama şimdilik standart 30 sıra varsayalım.
+        
+        int rows = flight.getPlane().getCapacity() / 6; 
+        
+        for (int i = 1; i <= rows; i++) {
+            for (char c = 'A'; c <= 'F'; c++) {
+                String seatCode = i + "" + c;
+                Seat seat = seats.get(seatCode);
+                
+                JButton seatBtn = new JButton(seatCode);
+                seatBtn.setPreferredSize(new Dimension(50, 40));
+                seatBtn.setFont(new Font("Arial", Font.PLAIN, 10));
+                
+                if (seat != null && seat.isReserved()) {
+                    seatBtn.setBackground(new Color(231, 76, 60)); // Dolu (Kırmızı)
+                    seatBtn.setForeground(Color.WHITE);
+                    seatBtn.setEnabled(false); // Tıklanamaz
+                } else {
+                    seatBtn.setBackground(new Color(46, 204, 113)); // Boş (Yeşil)
+                    seatBtn.setForeground(Color.BLACK);
+                    // Tıklayınca text kutusuna yazsın
+                    seatBtn.addActionListener(e -> txtSeatSelect.setText(seatCode));
+                }
+                seatPanel.add(seatBtn);
+            }
+        }
+        
+        JOptionPane.showMessageDialog(this, seatPanel, flightNum + " Koltuk Durumu", JOptionPane.PLAIN_MESSAGE);
+    }
 
-    // --- MANTIK METODLARI ---
+    // --- MANTIK METODLARI (ESKİ KODUN AYNISI) ---
 
     private void loadFlights() {
         flightTableModel.setRowCount(0);
@@ -155,25 +315,20 @@ public class PassengerDashboardGUI extends JFrame {
     private void loadMyReservations() {
         resTableModel.setRowCount(0);
         for (Reservation r : resManager.getAllReservations()) {
-            // Sadece şu anki kullanıcıya ait olanları göster (İsim eşleşmesi - Basit yöntem)
-            // Gerçek projede UserID ile eşleşmek daha doğru olur.
-            // Burada User login ismini Passenger soyadına vs eşliyoruz varsayalım.
-            // Test için hepsini gösteriyorum veya User içindeki isme göre filtreleyebilirsin.
-            
-            // Filtreleme mantığı:
-            // if (r.getPassenger().getName().equals(currentUser.getUsername())) ...
-            
-            Object[] row = {
-                r.getReservationCode(),
-                r.getFlight().getFlightNum(),
-                (r.getSeat() != null ? r.getSeat().getSeatNum() : "Yok"),
-                (r.isActive() ? "AKTİF" : "İPTAL")
-            };
-            resTableModel.addRow(row);
+            // İsim eşleşmesi (Basit yöntem)
+            if (r.getPassenger().getName().equalsIgnoreCase(currentUser.getUsername())) {
+                Object[] row = {
+                    r.getReservationCode(),
+                    r.getFlight().getFlightNum(),
+                    (r.getSeat() != null ? r.getSeat().getSeatNum() : "Yok"),
+                    (r.isActive() ? "AKTİF" : "İPTAL")
+                };
+                resTableModel.addRow(row);
+            }
         }
     }
 
-   private void handleBooking(String flightNum, String seatNum) {
+    private void handleBooking(String flightNum, String seatNum) {
         Flight flight = flightManager.getFlightByNum(flightNum);
         
         if (flight == null) {
@@ -184,37 +339,21 @@ public class PassengerDashboardGUI extends JFrame {
         try {
             Seat seat = flight.getPlane().getSeat(seatNum);
             
-            // 1. Koltuk Var mı Kontrolü (Exception Fırlatmalı Manager Testi için)
             if (seat == null) {
-                 // SeatManager'daki hatayı simüle etmek için ya manager'ı çağırırız
-                 // ya da manuel hata fırlatırız.
-                 // Doğrusu: SeatManager.bookSeat kullanmadan validasyon yapmaktır.
-                 throw new IllegalArgumentException("Hata: Koltuk bulunamadı -> " + seatNum);
+                throw new IllegalArgumentException("Hata: Koltuk bulunamadı -> " + seatNum);
             }
 
-            // 2. Koltuk Dolu mu Kontrolü (Sadece okuma yapıyoruz, yazma değil!)
             if (seat.isReserved()) {
                 JOptionPane.showMessageDialog(this, "Bu koltuk maalesef DOLU.");
                 return;
             }
 
-            // --- KRİTİK DÜZELTME: seatManager.bookSeat() ÇAĞIRMIYORUZ! ---
-            // Çünkü onu çağırırsak koltuğu doldurur, ReservationManager "Dolu" sanıp kaydetmez.
-
-            // 3. Yolcu Nesnesi Oluştur
-            // Not: ID ve Soyad şimdilik dummy (rastgele), gerçek projede User nesnesinden gelmeli.
             Passenger p = new Passenger("11111111111", currentUser.getUsername(), "Yolcu", "email@test.com");
-            
-            // 4. Rezervasyonu Yap (Bu metod hem koltuğu kapatacak hem dosyaya yazacak)
             Reservation res = resManager.makeReservation(flight, p, seat);
             
             if (res != null) {
-                // 5. Uçuş Dosyasını Güncelle (Koltuk artık dolu olduğu için)
                 flightManager.updateFlight(flight);
-                
                 JOptionPane.showMessageDialog(this, "Rezervasyon Başarılı! Koltuk: " + seatNum);
-                
-                // Tabloları Yenile
                 loadFlights();
                 loadMyReservations();
             } else {
@@ -232,12 +371,9 @@ public class PassengerDashboardGUI extends JFrame {
     private void handleCancel(String resCode) {
         boolean success = resManager.cancelReservation(resCode);
         if (success) {
-            // Uçuş dosyasını da güncellemek gerekir (Main'deki mantık)
-            // Kolaylık olsun diye tüm uçuşları refresh edebilirsin
-            // Detaylısı Main.java'daki gibi yapılabilir.
             JOptionPane.showMessageDialog(this, "İptal Edildi.");
             loadMyReservations();
-            loadFlights(); // Koltuk sayısı artsın diye
+            loadFlights(); 
         } else {
             JOptionPane.showMessageDialog(this, "İptal edilemedi.");
         }
