@@ -15,6 +15,10 @@ import ServiceAndManagersModule.SeatManager;
 import ServiceAndManagersModule.ReportGenerator;
 
 import java.util.Random;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.ResolverStyle;
+import java.time.format.DateTimeParseException;
 
 public class Main {
     private static Scanner scanner = new Scanner(System.in);
@@ -99,10 +103,13 @@ public class Main {
             return;
         }
         for (Flight f : flights) {
-            int emptySeats = seatManager.getAvailableSeatCount(f);
-            System.out.println(f.getFlightDetails());
-            System.out.println("   -> Boş Koltuk: " + emptySeats + " / " + f.getPlane().getCapacity());
-            System.out.println("------------------------------------------");
+        	if(f.isExpired() == false)
+        	{
+        		int emptySeats = seatManager.getAvailableSeatCount(f);
+                System.out.println(f.getFlightDetails());
+                System.out.println("   -> Boş Koltuk: " + emptySeats + " / " + f.getPlane().getCapacity());
+                System.out.println("------------------------------------------");
+        	}
         }
     }
 
@@ -194,53 +201,40 @@ public class Main {
 
     private static void cancelReservation() {
         System.out.println("\n---  REZERVASYON İPTALİ ---");
-        System.out.print("İptal edilecek Rezervasyon Kodu (Örn: REZ-1234): ");
+        System.out.print("İptal edilecek uçuşun numarası (Örn: TK586): ");
         String code = scanner.nextLine().trim();
 
         // 1. Önce rezervasyon nesnesini bulalım (Detaylara ihtiyacımız var)
-        Reservation targetRes = null;
-        for (Reservation r : reservationManager.getAllReservations()) {
-            if (r.getReservationCode().equals(code)) {
-                targetRes = r;
-                break;
-            }
-        }
+        System.out.print("Yolcu TC/Pasaport No Girin: ");
+        String passengerID = scanner.nextLine().trim();
 
+        Reservation targetRes = reservationManager.findReservationByDetails(code, passengerID);
+        
         if (targetRes == null) {
-            System.out.println("HATA: Bu kodla bir rezervasyon bulunamadı.");
+            System.out.println("HATA: Bu bilgilere ait aktif bir rezervasyon bulunamadı.");
             return;
         }
 
-        if (!targetRes.isActive()) {
-            System.out.println("HATA: Bu rezervasyon zaten iptal edilmiş.");
+        System.out.println(">> Rezervasyon Bulundu: " + targetRes.getReservationCode());
+        System.out.println(">> Yolcu: " + targetRes.getPassenger().getName() + " " + targetRes.getPassenger().getSurname());
+        System.out.println(">> Koltuk: " + targetRes.getSeat().getSeatNum());
+
+        System.out.print("İptali onaylıyor musunuz? (E/H): ");
+        String confirmation = scanner.nextLine().trim();
+
+        if (!confirmation.equalsIgnoreCase("E")) {
+            System.out.println("İşlem iptal edildi.");
             return;
         }
 
-        // 2. Rezervasyonu İptal Et (reservation.dat güncellenir)
-        boolean success = reservationManager.cancelReservation(code,flightManager);
+        // 4. Perform Cancellation
+        boolean success = reservationManager.cancelReservation(targetRes.getReservationCode(), flightManager);
 
-        // 3. SENKRONİZASYON: Uçuş dosyasındaki koltuğu da boşa çıkarmamız lazım!
         if (success) {
-            String flightNum = targetRes.getFlight().getFlightNum();
-            String seatNum = targetRes.getSeat().getSeatNum();
-
-            // FlightManager'dan 'Canlı' uçuşu çek
-            Flight realFlight = flightManager.getFlightByNum(flightNum);
-            
-            if (realFlight != null) {
-                // Canlı uçuşun koltuğunu bul ve boşalt
-                Seat realSeat = realFlight.getPlane().getSeat(seatNum);
-                if (realSeat != null) {
-                    realSeat.setReserveStatus(false); // Koltuğu BOŞA düşür
-                    
-                    // 4. Uçuş dosyasını güncelle (flights.dat güncellenir)
-                    flightManager.updateFlight(realFlight);
-                    System.out.println(">> Veritabanı Güncellendi: " + flightNum + " seferili uçuşta " + seatNum + " nolu koltuk boşa çıkarıldı.");
-                }
-            }
-            System.out.println(" Rezervasyon başarıyla iptal edildi.");
+            System.out.println("Rezervasyon başarıyla iptal edildi.");
+            System.out.println("Koltuk boşa çıkarıldı ve dosyalar güncellendi.");
         } else {
-            System.out.println(" İptal işlemi sırasında bir hata oluştu.");
+            System.out.println("İptal işlemi sırasında bir hata oluştu.");
         }
     }
 
@@ -268,7 +262,8 @@ public class Main {
     }
 
     private static void adminAddFlight() {
-        System.out.println("\n--- ➕ YENİ UÇUŞ EKLE (ADMIN) ---");
+        System.out.println("\n--- YENİ UÇUŞ EKLE (ADMIN) ---");
+        
         System.out.print("Uçuş No (Örn: TK999): ");
         String fNum = scanner.nextLine();
         
@@ -278,16 +273,62 @@ public class Main {
         System.out.print("Varış Yeri: ");
         String arr = scanner.nextLine();
         
-        System.out.print("Tarih (dd-MM-yyyy): ");
-        String date = scanner.nextLine();
-        
-        // Otomatik nesneler
-        Plane p = new Plane("PL-" + new Random().nextInt(1000), "Boeing 737", 180);
+        // --- Tarih kontrolu (sadece takvimde var olan tarihler girilebiliyor) ---
+        String date = "";
+        boolean validDate = false;
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-uuuu").withResolverStyle(ResolverStyle.STRICT);
+        while (!validDate) {
+            System.out.print("Tarih (dd-MM-yyyy): ");
+            date = scanner.nextLine().trim();
+            try {
+                LocalDate parsedDate = LocalDate.parse(date, formatter);
+                if (parsedDate.isBefore(LocalDate.now())) {
+                    System.out.println("HATA: Geçmişe uçuş ekleyemezsiniz!");
+                } else {
+                    validDate = true;
+                }
+            } catch (DateTimeParseException e) {
+                System.out.println("HATA: Geçersiz tarih! Lütfen 'Gün-Ay-Yıl' formatında girin (Örn: 25-06-2026).");
+            }
+        }
+
+        // 1. Uçuş Saati (Opsiyonel olarak eklendi, boş kalmasın diye)
+        System.out.print("Uçuş Saati (Örn: 14:30): ");
+        String hour = scanner.nextLine();
+
+        // 2. Uçuş Süresi
+        System.out.print("Uçuş Süresi (Örn: 2h 30m): ");
+        String duration = scanner.nextLine();
+
+        // 3. Uçak Modeli
+        System.out.print("Uçak Modeli (Örn: Boeing 737, Airbus A320): ");
+        String planeModel = scanner.nextLine();
+
+        // 4. Kapasite (Sayı kontrolü yaparak)
+        int capacity = 0;
+        boolean validCap = false;
+        while (!validCap) {
+            System.out.print("Uçak Kapasitesi (Örn: 180): ");
+            try {
+                capacity = Integer.parseInt(scanner.nextLine());
+                if (capacity > 0) {
+                    validCap = true;
+                } else {
+                    System.out.println("Kapasite 0'dan büyük olmalıdır.");
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("Lütfen geçerli bir sayı giriniz!");
+            }
+        }
+        // Verilen girdilere gore ucagin olusturulmasi 
+        Plane p = new Plane("PL-" + new Random().nextInt(10000), planeModel, capacity);    
         Route r = new Route(dep, arr, "GENEL");
-        Flight f = new Flight(fNum, r, date, "12:00", "2h", p);
         
+        // Girilen bilgilerle uçuşu oluşturuyoruz
+        Flight f = new Flight(fNum, r, date, hour, duration, p);
+    
         flightManager.addFlight(f);
-        System.out.println("Yeni uçuş sisteme eklendi!");
+        System.out.println("Yeni uçuş ve uçak bilgileri sisteme başarıyla eklendi!");
     }
 
     // --- BAŞLANGIÇ VERİSİ ---

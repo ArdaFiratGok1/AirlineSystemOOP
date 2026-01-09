@@ -26,6 +26,17 @@ public class ReservationManager {
             this.reservations = new ArrayList<>();
         }
     }
+    
+    public Reservation findReservationByDetails(String flightNum, String passengerID) {
+        for (Reservation res : reservations) {
+        	if (res.isActive() && 
+                res.getFlight().getFlightNum().equalsIgnoreCase(flightNum) &&
+                res.getPassenger().getPassengerID().equals(passengerID)) {
+                return res;
+            }
+        }
+        return null; // Not found
+    }
 
     /**
      * Yeni bir rezervasyon oluşturur, koltuğu kapatır ve dosyaya kaydeder.
