@@ -7,6 +7,8 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
 import java.util.Map;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 import FlightManagementModule.Flight;
 import FlightManagementModule.Seat;
@@ -30,6 +32,7 @@ public class PassengerDashboardGUI extends JFrame {
     // Seçim Alanları
     private JTextField txtSeatSelect;
     private JCheckBox chkBaggage;
+    private JComboBox<String> cmbFlightFilter;
 
     public PassengerDashboardGUI(User user) {
         this.currentUser = user;
@@ -108,28 +111,97 @@ public class PassengerDashboardGUI extends JFrame {
         JPanel panel = new JPanel(new BorderLayout(15, 15));
         panel.setOpaque(false);
 
-        // Arama Çubuğu (Bonus Özellik)
+        // --- ARAMA ve FİLTRE PANELİ ---
         JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JTextField txtSearch = new JTextField(20);
+        
+        JTextField txtSearch = new JTextField(15);
         txtSearch.putClientProperty("JTextField.placeholderText", "Şehir veya Uçuş No ara...");
-        searchPanel.add(new JLabel("🔍 Filtrele: "));
+        searchPanel.add(new JLabel("🔍 Ara: "));
         searchPanel.add(txtSearch);
+
+        searchPanel.add(new JLabel(" |  Göster: "));
+        String[] filterOptions = {"Aktif Uçuşlar (Bilet Alınabilir)", "Geçmiş Uçuşlar", "Tüm Uçuşlar"};
+        cmbFlightFilter = new JComboBox<>(filterOptions);
+        cmbFlightFilter.setSelectedIndex(0); 
+        searchPanel.add(cmbFlightFilter);
+
         panel.add(searchPanel, BorderLayout.NORTH);
 
-        // 1. Uçuş Tablosu
-        String[] cols = {"Uçuş No", "Rota", "Tarih", "Saat", "Boş Koltuk"};
+        // --- TABLO ---
+        String[] cols = {"Uçuş No", "Rota", "Tarih", "Saat", "Süre", "Uçak", "Boş Koltuk"};
         flightTableModel = new DefaultTableModel(cols, 0) {
             public boolean isCellEditable(int row, int col) { return false; }
         };
-        JTable table = new JTable(flightTableModel);
+        
+        // JTable Özelleştirme
+        JTable table = new JTable(flightTableModel) {
+            // ÖZELLİK 1: Satır Renklendirme (Pale/Soluk Yapma)
+            @Override
+            public Component prepareRenderer(javax.swing.table.TableCellRenderer renderer, int row, int column) {
+                Component c = super.prepareRenderer(renderer, row, column);
+                
+                // Modeldeki asıl satır indeksini bul (Filtreleme varsa kaymasın diye)
+                int modelRow = convertRowIndexToModel(row);
+                String dateStr = (String) getModel().getValueAt(modelRow, 2);
+                String timeStr = (String) getModel().getValueAt(modelRow, 3);
+
+                if (isExpired(dateStr, timeStr)) {
+                    c.setForeground(Color.LIGHT_GRAY); // Soluk Gri Yazı
+                    c.setBackground(Color.WHITE);      // Arka plan Beyaz kalsın
+                } else {
+                    // Normal satır renkleri
+                    if (isRowSelected(row)) {
+                        c.setForeground(getSelectionForeground());
+                        c.setBackground(getSelectionBackground());
+                    } else {
+                        c.setForeground(Color.BLACK);
+                        c.setBackground(Color.WHITE);
+                    }
+                }
+                return c;
+            }
+        };
+
+        // ÖZELLİK 2: Tıklamayı Engelleme (Unclickable)
+        // Kullanıcı soluk satıra tıklarsa, seçim işlemini iptal ediyoruz.
+        table.setSelectionModel(new DefaultListSelectionModel() {
+            @Override
+            public void setSelectionInterval(int index0, int index1) {
+                // Tıklanan satırın tarihini kontrol et
+                if (index0 == index1) { // Tekli seçim
+                    // Görünüm indeksini Model indeksine çevir
+                    if (index0 < table.getRowCount()) {
+                        int modelRow = table.convertRowIndexToModel(index0);
+                        String dateStr = (String) flightTableModel.getValueAt(modelRow, 2);
+                        String timeStr = (String) flightTableModel.getValueAt(modelRow, 3);
+                        
+                        // Eğer süresi geçmişse SEÇME!
+                        if (isExpired(dateStr, timeStr)) {
+                            return; 
+                        }
+                    }
+                }
+                super.setSelectionInterval(index0, index1);
+            }
+        });
+
         table.setFillsViewportHeight(true);
         table.setShowGrid(false);
         
-        loadFlights(); // Verileri yükle
+        table.getColumnModel().getColumn(0).setPreferredWidth(70);
+        table.getColumnModel().getColumn(4).setPreferredWidth(50);
+        table.getColumnModel().getColumn(6).setPreferredWidth(80);
+
+        loadFlights(); 
 
         panel.add(new JScrollPane(table), BorderLayout.CENTER);
         
-        // Canlı Arama Mantığı
+        // --- OLAYLAR (LISTENERS) ---
+        cmbFlightFilter.addActionListener(e -> {
+            loadFlights(); 
+            txtSearch.setText(""); 
+        });
+
         TableRowSorter<DefaultTableModel> sorter = new TableRowSorter<>(flightTableModel);
         table.setRowSorter(sorter);
         txtSearch.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
@@ -143,9 +215,9 @@ public class PassengerDashboardGUI extends JFrame {
             }
         });
 
-        // 2. Alt Kısım (Satın Alma İşlemi - Modernize Edildi)
+        // --- ALT PANEL (SATIN ALMA) ---
         JPanel bottomPanel = new JPanel(new GridBagLayout());
-        bottomPanel.setBackground(new Color(235, 245, 251)); // Açık Mavi Arka Plan
+        bottomPanel.setBackground(new Color(235, 245, 251)); 
         bottomPanel.setBorder(BorderFactory.createTitledBorder(
             BorderFactory.createMatteBorder(2, 2, 2, 2, new Color(52, 152, 219)), " Rezervasyon İşlemleri "
         ));
@@ -159,15 +231,14 @@ public class PassengerDashboardGUI extends JFrame {
         chkBaggage.setOpaque(false);
         
         JButton btnShowSeats = new JButton("👁️ Koltuk Durumlarını Gör");
-        btnShowSeats.setBackground(new Color(241, 196, 15)); // Sarı
+        btnShowSeats.setBackground(new Color(241, 196, 15)); 
         btnShowSeats.setForeground(Color.BLACK);
 
         JButton btnBook = new JButton("REZERVASYONU TAMAMLA");
-        btnBook.setBackground(new Color(39, 174, 96)); // Yeşil
+        btnBook.setBackground(new Color(39, 174, 96)); 
         btnBook.setForeground(Color.WHITE);
         btnBook.setFont(new Font("Segoe UI", Font.BOLD, 13));
 
-        // Layout Yerleşimi
         gbc.gridx = 0; gbc.gridy = 0;
         bottomPanel.add(new JLabel("İstenen Koltuk (Örn: 1A):"), gbc);
         
@@ -185,13 +256,11 @@ public class PassengerDashboardGUI extends JFrame {
 
         panel.add(bottomPanel, BorderLayout.SOUTH);
 
-        // --- AKSİYONLAR ---
-        
-        // Koltuk Haritasını Göster Butonu
+        // --- BUTON AKSİYONLARI ---
         btnShowSeats.addActionListener(e -> {
             int selectedRow = table.getSelectedRow();
             if (selectedRow == -1) {
-                JOptionPane.showMessageDialog(this, "Önce listeden bir uçuş seçiniz!");
+                JOptionPane.showMessageDialog(this, "Önce listeden AKTİF bir uçuş seçiniz!");
                 return;
             }
             int modelRow = table.convertRowIndexToModel(selectedRow);
@@ -199,13 +268,13 @@ public class PassengerDashboardGUI extends JFrame {
             showSeatMap(flightNum);
         });
 
-        // Rezervasyon Yap Butonu
         btnBook.addActionListener(e -> {
             int selectedRow = table.getSelectedRow();
             if (selectedRow == -1) {
-                JOptionPane.showMessageDialog(this, "Lütfen tablodan bir uçuş seçin!");
+                JOptionPane.showMessageDialog(this, "Lütfen tablodan AKTİF bir uçuş seçin!");
                 return;
             }
+            
             int modelRow = table.convertRowIndexToModel(selectedRow);
             String flightNum = (String) flightTableModel.getValueAt(modelRow, 0);
             String seatNum = txtSeatSelect.getText().trim().toUpperCase();
@@ -337,19 +406,37 @@ public class PassengerDashboardGUI extends JFrame {
 
     private void loadFlights() {
         flightTableModel.setRowCount(0);
-        for (Flight f : flightManager.getAllFlights()) {
+        
+        // ComboBox henüz oluşturulmadıysa (Constructor aşaması) varsayılan olarak Aktifleri getir
+        String selectedFilter = (cmbFlightFilter != null) ? (String) cmbFlightFilter.getSelectedItem() : "Aktif Uçuşlar";
+        
+        java.util.List<Flight> flightsToShow;
+
+        // Seçime göre hangi listeyi çekeceğimize karar veriyoruz
+        if (selectedFilter.contains("Geçmiş")) {
+            flightsToShow = flightManager.getPastFlights();
+        } else if (selectedFilter.contains("Tüm")) {
+            flightsToShow = flightManager.getAllFlights();
+        } else {
+            // Varsayılan: Aktif Uçuşlar
+            flightsToShow = flightManager.getActiveFlights();
+        }
+
+        for (Flight f : flightsToShow) {
             int empty = seatManager.getAvailableSeatCount(f);
             Object[] row = {
                 f.getFlightNum(),
                 f.getRoute().getDeparturePlace() + " -> " + f.getRoute().getArrivalPlace(),
                 f.getDate(),
                 f.getTime(),
+                f.getDuration(), // Süre eklendi
+                f.getPlane().getPlaneModel(),
                 empty + " / " + f.getPlane().getCapacity()
             };
             flightTableModel.addRow(row);
         }
     }
-
+    
     private void loadMyReservations() {
         resTableModel.setRowCount(0);
         for (Reservation r : resManager.getAllReservations()) {
@@ -406,6 +493,17 @@ public class PassengerDashboardGUI extends JFrame {
         }
     }
 
+    private boolean isExpired(String dateStr, String timeStr) {
+        try {
+            String dt = dateStr + " " + timeStr;
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
+            LocalDateTime flightTime = LocalDateTime.parse(dt, formatter);
+            return flightTime.isBefore(LocalDateTime.now());
+        } catch (Exception e) {
+            return false; // Hata varsa aktif varsayalım
+        }
+    }
+    
     private void handleCancel(String resCode) {
         // ARTIK BURAYA "flightManager" NESNESİNİ DE GÖNDERİYORUZ:
         boolean success = resManager.cancelReservation(resCode, flightManager);

@@ -125,8 +125,8 @@ public class AdminDashboardGUI extends JFrame {
         } catch (Exception ex) {}
     }
 
-    // =========================================================================
-    // SEKME 1: UÇUŞ YÖNETİMİ
+ // =========================================================================
+    // SEKME 1: UÇUŞ YÖNETİMİ (GÜNCELLENDİ)
     // =========================================================================
     private JPanel createFlightPanel() {
         JPanel panel = new JPanel(new BorderLayout(15, 15));
@@ -143,12 +143,12 @@ public class AdminDashboardGUI extends JFrame {
         searchPanel.add(txtSearch);
         panel.add(searchPanel, BorderLayout.NORTH);
 
-        // --- 2. TABLO ---
-        String[] columns = {"Uçuş No", "Nereden", "Nereye", "Tarih", "Saat", "Uçak", "Kapasite"};
+        // --- 2. TABLO (Süre Kolonu Eklendi) ---
+        String[] columns = {"Uçuş No", "Nereden", "Nereye", "Tarih", "Saat", "Süre", "Uçak", "Kapasite"};
         flightTableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return false; // Hücre içinde direkt düzenlemeyi kapatıyoruz (Karışıklık olmasın diye)
+                return false; 
             }
         };
         JTable table = new JTable(flightTableModel);
@@ -157,6 +157,11 @@ public class AdminDashboardGUI extends JFrame {
         table.setShowGrid(false);
         table.setIntercellSpacing(new Dimension(0, 0));
         table.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 13));
+        
+        // Sütun genişliklerini ayarla (Estetik için)
+        table.getColumnModel().getColumn(0).setPreferredWidth(70); // Uçuş No
+        table.getColumnModel().getColumn(5).setPreferredWidth(50); // Süre
+        table.getColumnModel().getColumn(7).setPreferredWidth(60); // Kapasite
         
         loadFlightsToTable();
 
@@ -178,7 +183,7 @@ public class AdminDashboardGUI extends JFrame {
             }
         });
 
-        // --- 3. ALT FORM VE BUTONLAR ---
+        // --- 3. ALT FORM VE BUTONLAR (YENİ ALANLAR EKLENDİ) ---
         JPanel formPanel = new JPanel(new GridBagLayout());
         formPanel.setBackground(new Color(235, 245, 251)); 
         formPanel.setBorder(BorderFactory.createTitledBorder(
@@ -187,20 +192,33 @@ public class AdminDashboardGUI extends JFrame {
         ));
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(8, 8, 8, 8);
+        gbc.insets = new Insets(5, 5, 5, 5); // Daha sıkı yerleşim
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        JTextField txtNum = new JTextField(10);
-        JTextField txtDep = new JTextField(10);
-        JTextField txtArr = new JTextField(10);
-        JTextField txtDate = new JTextField(10);
-        JTextField txtTime = new JTextField(8);
+        // Form Bileşenleri
+        JTextField txtNum = new JTextField(8);
+        JTextField txtDep = new JTextField(8);
+        JTextField txtArr = new JTextField(8);
+        JTextField txtDate = new JTextField(8);
+        JTextField txtTime = new JTextField(6);
+        
+        // YENİ ALANLAR:
+        JTextField txtDuration = new JTextField(6);
+        JTextField txtPlaneModel = new JTextField(10);
+        JTextField txtCapacity = new JTextField(6);
 
-        addFormRow(formPanel, gbc, 0, "Uçuş No:", txtNum);
-        addFormRow(formPanel, gbc, 1, "Kalkış:", txtDep);
-        addFormRow(formPanel, gbc, 2, "Varış:", txtArr);
-        addFormRow(formPanel, gbc, 3, "Tarih:", txtDate);
-        addFormRow(formPanel, gbc, 4, "Saat:", txtTime);
+        // Grid Yerleşimi (2 Kolonlu Form)
+        // Sol Taraf
+        addFormRow(formPanel, gbc, 0, 0, "Uçuş No:", txtNum);
+        addFormRow(formPanel, gbc, 0, 1, "Kalkış:", txtDep);
+        addFormRow(formPanel, gbc, 0, 2, "Varış:", txtArr);
+        addFormRow(formPanel, gbc, 0, 3, "Tarih:", txtDate);
+        
+        // Sağ Taraf
+        addFormRow(formPanel, gbc, 2, 0, "Saat:", txtTime);
+        addFormRow(formPanel, gbc, 2, 1, "Süre:", txtDuration);
+        addFormRow(formPanel, gbc, 2, 2, "Uçak Tipi:", txtPlaneModel);
+        addFormRow(formPanel, gbc, 2, 3, "Kapasite:", txtCapacity);
 
         // --- BUTONLAR ---
         JButton btnAdd = new JButton("EKLE");
@@ -219,7 +237,6 @@ public class AdminDashboardGUI extends JFrame {
         btnClear.setBackground(Color.GRAY);
         btnClear.setForeground(Color.WHITE);
 
-        // Butonları Yan Yana Koymak İçin Panel
         JPanel btnGroup = new JPanel(new GridLayout(1, 4, 10, 0));
         btnGroup.setOpaque(false);
         btnGroup.add(btnAdd);
@@ -227,12 +244,13 @@ public class AdminDashboardGUI extends JFrame {
         btnGroup.add(btnDelete);
         btnGroup.add(btnClear);
         
-        gbc.gridx = 0; gbc.gridy = 5; gbc.gridwidth = 2;
+        gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 4; // Tüm genişliği kaplasın
+        gbc.insets = new Insets(15, 5, 5, 5);
         formPanel.add(btnGroup, gbc);
 
         // --- OLAYLAR (LISTENERS) ---
 
-        // 1. Tablo Seçim Olayı (Satıra tıklayınca verileri kutulara doldur)
+        // 1. Tablo Seçim Olayı
         table.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting() && table.getSelectedRow() != -1) {
                 int selectedRow = table.getSelectedRow();
@@ -243,13 +261,20 @@ public class AdminDashboardGUI extends JFrame {
                 txtArr.setText(flightTableModel.getValueAt(modelRow, 2).toString());
                 txtDate.setText(flightTableModel.getValueAt(modelRow, 3).toString());
                 txtTime.setText(flightTableModel.getValueAt(modelRow, 4).toString());
+                txtDuration.setText(flightTableModel.getValueAt(modelRow, 5).toString());
+                txtPlaneModel.setText(flightTableModel.getValueAt(modelRow, 6).toString());
+                txtCapacity.setText(flightTableModel.getValueAt(modelRow, 7).toString());
             }
         });
 
         // 2. Ekle Butonu
         btnAdd.addActionListener(e -> {
-            addNewFlight(txtNum.getText(), txtDep.getText(), txtArr.getText(), txtDate.getText(), txtTime.getText());
-            clearFields(txtNum, txtDep, txtArr, txtDate, txtTime);
+            addNewFlight(
+                txtNum.getText(), txtDep.getText(), txtArr.getText(), 
+                txtDate.getText(), txtTime.getText(), 
+                txtDuration.getText(), txtPlaneModel.getText(), txtCapacity.getText()
+            );
+            clearFields(txtNum, txtDep, txtArr, txtDate, txtTime, txtDuration, txtPlaneModel, txtCapacity);
         });
 
         // 3. Güncelle Butonu
@@ -260,30 +285,32 @@ public class AdminDashboardGUI extends JFrame {
                 return;
             }
             
-            // Orijinal Uçuş Numarasını al (Değişiklik yapılmadan önceki hali)
+            // Veri Doğrulama (Kapasite Sayı mı?)
+            int cap = 0;
+            try {
+                cap = Integer.parseInt(txtCapacity.getText());
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(this, "Kapasite bir sayı olmalıdır!");
+                return;
+            }
+
             int modelRow = table.convertRowIndexToModel(selectedRow);
             String originalNum = flightTableModel.getValueAt(modelRow, 0).toString();
             
-            // Yeni verileri kutulardan al
-            String newNum = txtNum.getText();
-            String newDep = txtDep.getText();
-            String newArr = txtArr.getText();
-            String newDate = txtDate.getText();
-            String newTime = txtTime.getText();
+            // Uçak nesnesini güncelle
+            // Not: Mevcut ID'yi korumak istersen flightManager'dan çekmen lazım, 
+            // burada basitlik için random ID veriyoruz veya sabit bırakıyoruz.
+            Plane p = new Plane("PL-" + new Random().nextInt(9999), txtPlaneModel.getText(), cap); 
             
-            // Uçak nesnesini yeniden oluşturuyoruz (Basitlik için random uçak atadım, istersen mevcut uçağı koruyabilirsin)
-            Plane p = new Plane("PL-UPD", "Boeing 737", 180); 
-            Route r = new Route(newDep, newArr, "GENEL");
-            Flight updatedFlight = new Flight(newNum, r, newDate, newTime, "2h", p);
+            Route r = new Route(txtDep.getText(), txtArr.getText(), "GENEL");
+            Flight updatedFlight = new Flight(txtNum.getText(), r, txtDate.getText(), txtTime.getText(), txtDuration.getText(), p);
             
-            // Manager üzerinden güncelle4
             flightManager.updateFlight(originalNum, updatedFlight);
-            
             resManager.updateFlightInfoInReservations(originalNum, updatedFlight);
             
             loadFlightsToTable(); 
-            JOptionPane.showMessageDialog(this, "Uçuş ve ilgili biletler güncellendi!");
-            clearFields(txtNum, txtDep, txtArr, txtDate, txtTime);
+            JOptionPane.showMessageDialog(this, "Uçuş başarıyla güncellendi!");
+            clearFields(txtNum, txtDep, txtArr, txtDate, txtTime, txtDuration, txtPlaneModel, txtCapacity);
         });
         
         // 4. Sil Butonu
@@ -298,7 +325,7 @@ public class AdminDashboardGUI extends JFrame {
             if (JOptionPane.showConfirmDialog(this, fNum + " silinsin mi?", "Onay", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
                 flightManager.removeFlight(fNum);
                 loadFlightsToTable();
-                clearFields(txtNum, txtDep, txtArr, txtDate, txtTime);
+                clearFields(txtNum, txtDep, txtArr, txtDate, txtTime, txtDuration, txtPlaneModel, txtCapacity);
                 JOptionPane.showMessageDialog(this, "Uçuş silindi.");
             }
         });
@@ -306,15 +333,23 @@ public class AdminDashboardGUI extends JFrame {
         // 5. Temizle Butonu
         btnClear.addActionListener(e -> {
             table.clearSelection();
-            clearFields(txtNum, txtDep, txtArr, txtDate, txtTime);
+            clearFields(txtNum, txtDep, txtArr, txtDate, txtTime, txtDuration, txtPlaneModel, txtCapacity);
         });
 
         panel.add(formPanel, BorderLayout.SOUTH);
         return panel;
     }
-    
-    private void clearFields(JTextField... fields) {
-        for (JTextField f : fields) f.setText("");
+
+    // YENİ YARDIMCI METOD (GridBagLayout için satır ekleme)
+    private void addFormRow(JPanel p, GridBagConstraints gbc, int x, int y, String label, Component cmp) {
+        gbc.gridx = x; 
+        gbc.gridy = y; 
+        gbc.weightx = 0;
+        p.add(new JLabel(label), gbc);
+        
+        gbc.gridx = x + 1; 
+        gbc.weightx = 1.0;
+        p.add(cmp, gbc);
     }
     // =========================================================================
     // SEKME 2: PERSONEL YÖNETİMİ
@@ -465,8 +500,14 @@ public class AdminDashboardGUI extends JFrame {
         flightTableModel.setRowCount(0);
         for (Flight f : flightManager.getAllFlights()) {
             flightTableModel.addRow(new Object[]{
-                f.getFlightNum(), f.getRoute().getDeparturePlace(), f.getRoute().getArrivalPlace(),
-                f.getDate(), f.getTime(), f.getPlane().getPlaneModel(), f.getPlane().getCapacity()
+                f.getFlightNum(), 
+                f.getRoute().getDeparturePlace(), 
+                f.getRoute().getArrivalPlace(),
+                f.getDate(), 
+                f.getTime(), 
+                f.getDuration(), 
+                f.getPlane().getPlaneModel(), 
+                f.getPlane().getCapacity()
             });
         }
     }
@@ -480,11 +521,28 @@ public class AdminDashboardGUI extends JFrame {
         }
     }
 
-    private void addNewFlight(String num, String dep, String arr, String date, String time) {
-        if(num.isEmpty() || dep.isEmpty()) return;
-        Plane p = new Plane("PL-" + new Random().nextInt(999), "Boeing 737", 180);
+    private void addNewFlight(String num, String dep, String arr, String date, String time, String duration, String model, String capacityStr) {
+        if(num.isEmpty() || dep.isEmpty() || arr.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Lütfen temel bilgileri doldurunuz!");
+            return;
+        }
+        int capacity = 0;
+        try {
+            capacity = Integer.parseInt(capacityStr);
+            if (capacity <= 0) throw new NumberFormatException();
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, "Kapasite geçerli bir pozitif sayı olmalıdır!");
+            return;
+        }
+        // Girilen bilgilerle Uçak oluştur
+        Plane p = new Plane("PL-" + new Random().nextInt(9999), model, capacity);
+        
+        // Girilen bilgilerle Rota oluştur
         Route r = new Route(dep, arr, "GENEL");
-        Flight f = new Flight(num, r, date, time, "2h", p);
+        
+        // Uçuş oluştur
+        Flight f = new Flight(num, r, date, time, duration, p);
+        
         flightManager.addFlight(f);
         loadFlightsToTable();
         JOptionPane.showMessageDialog(this, "Uçuş başarıyla eklendi.");
@@ -505,6 +563,12 @@ public class AdminDashboardGUI extends JFrame {
                 SwingUtilities.invokeLater(() -> simulationLogArea.append(sb.toString() + ">> Rapor tamamlandı.\n"));
             } catch (Exception ex) { ex.printStackTrace(); }
         }).start();
+    }
+    
+    private void clearFields(JTextField... fields) {
+        for (JTextField f : fields) {
+            f.setText("");
+        }
     }
 
     private void runScenario1InGUI(boolean isSafe) {
