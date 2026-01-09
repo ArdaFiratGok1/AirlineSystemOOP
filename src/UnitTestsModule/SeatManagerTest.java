@@ -16,20 +16,20 @@ public class SeatManagerTest {
         SeatManager seatManager = new SeatManager();
         
         //Test ortamı hazırla
-        Plane plane = new Plane("TEST-P", "TestModel", 180); // 180 koltuklu
+        Plane plane = new Plane("TEST-P", "TestModel", 180); //180 koltuklu
         Route route = new Route("A", "B", "CODE");
         Flight flight = new Flight("TK01", route, "01-01-2026", "10:00", "2h", plane);
         
         //Başlangıçta hepsi boş olmalı (180)
         int initialCount = seatManager.getAvailableSeatCount(flight);
-        assertEquals(180, initialCount, "Başlangıçta 180 boş koltuk olmalı.");
+        assertEquals(162, initialCount, "Başlangıçta 162 boş koltuk olmalı.");//180'in yuzde 90'ı aktif koltuk
 
         //Bir koltuk rezerve et (Örn: 1A)
         seatManager.bookSeat(flight, "1A");
 
-        //Sayının 179'a düşüp düşmediğini kontrol et
+        //Sayının 161'a düşüp düşmediğini kontrol et
         int newCount = seatManager.getAvailableSeatCount(flight);
-        assertEquals(179, newCount, "Rezervasyon sonrası sayı 1 azalmalı.");
+        assertEquals(161, newCount, "Rezervasyon sonrası sayı 1 azalmalı.");
     }
 
    
