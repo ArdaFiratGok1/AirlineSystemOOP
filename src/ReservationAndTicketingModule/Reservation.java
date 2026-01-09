@@ -6,10 +6,10 @@ import FlightManagementModule.Flight;
 import FlightManagementModule.Seat;
 
 public class Reservation implements Serializable {
-    // Attributes (Kaynak 12'ye uygun hale getirildi)
+    
     private String reservationCode;
     private Flight flight;
-    private Passenger passenger; // EKLENDİ (Plane yerine Passenger geldi)
+    private Passenger passenger; 
     private Seat seat;
     private String dateOfReservation;
     private boolean isActive;
@@ -21,19 +21,16 @@ public class Reservation implements Serializable {
         this.passenger = passenger;
         this.seat = seat;
         this.dateOfReservation = dateOfReservation;
-        this.isActive = true; // Yeni oluşturulan rezervasyon varsayılan olarak aktiftir
+        this.isActive = true; 
     }
 
-    // Methods
+    
     public void cancel() {
         this.isActive = false;
-        // Not: Koltuğun rezervasyon durumunu "boş"a çekme işlemi Manager sınıfında yapılacak.
+        //Not:Koltuğun rezervasyon durumunu boşa çekme işlemi Manager sınıfında yapılacak.!!!!
     }
 
-    /**
-     * Terminal çıktısı için özet bilgi.
-     * Örn: [REZ-001] Arda Gök -> TK01 (1A) - AKTİF
-     */
+   
     @Override
     public String toString() {
         String status = isActive ? "AKTİF" : "İPTAL";
@@ -45,7 +42,7 @@ public class Reservation implements Serializable {
                 reservationCode, passengerName, flightNum, seatNum, status);
     }
 
-    // --- GETTER & SETTER METODLARI ---
+    
 
     public String getReservationCode() { return reservationCode; }
     public void setReservationCode(String reservationCode) { this.reservationCode = reservationCode; }
@@ -53,8 +50,8 @@ public class Reservation implements Serializable {
     public Flight getFlight() { return flight; }
     public void setFlight(Flight flight) { this.flight = flight; }
 
-    public Passenger getPassenger() { return passenger; } // Yeni getter
-    public void setPassenger(Passenger passenger) { this.passenger = passenger; } // Yeni setter
+    public Passenger getPassenger() { return passenger; } 
+    public void setPassenger(Passenger passenger) { this.passenger = passenger; } 
 
     public Seat getSeat() { return seat; }
     public void setSeat(Seat seat) { this.seat = seat; }

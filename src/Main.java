@@ -23,13 +23,13 @@ import java.time.format.DateTimeParseException;
 public class Main {
     private static Scanner scanner = new Scanner(System.in);
     
-    // Yöneticiler (Managers)
+    
     private static FlightManager flightManager = new FlightManager();
     private static ReservationManager reservationManager = new ReservationManager();
     private static SeatManager seatManager = new SeatManager();
 
     public static void main(String[] args) {
-        // İlk açılışta hiç uçuş yoksa örnek verileri yükle
+        //ilk açılış için veri yüklüyor
         initializeSystem();
 
         boolean isRunning = true;
@@ -62,7 +62,7 @@ public class Main {
                     adminAddFlight();
                     break;
                 case 6:
-                    listPastFlights(); // Yeni case
+                    listPastFlights(); 
                     break;
                 case 7:
                     generateReportAsync(); 
@@ -81,15 +81,15 @@ public class Main {
 
     private static void printMenu() {
         System.out.println("\n==========================================");
-        System.out.println("      UÇUŞ REZERVASYON SİSTEMİ  ");
+        System.out.println("      YILDIZLARARASI  UÇUŞ  ");
         System.out.println("==========================================");
         System.out.println("1. Aktif Uçuşları Listele (Bilet Alınabilir)");
         System.out.println("2. Bilet Al / Rezervasyon Yap");
         System.out.println("3. Rezervasyon İptal Et");
-        System.out.println("4. Tüm Rezervasyonları Listele (Rapor)");
+        System.out.println("4. Tüm Rezervasyonları Listele");
         System.out.println("5. Yeni Uçuş Ekle (Admin)");
-        System.out.println("6. Geçmiş Uçuşları Listele (Arşiv)");
-        System.out.println("7. Rapor Al (Asenkron - Scenario 2)");
+        System.out.println("6. Geçmiş Uçuşları Listele");
+        System.out.println("7. Rapor Al ");
         System.out.println("0. Çıkış");
         System.out.println("==========================================");
     }
@@ -114,16 +114,15 @@ public class Main {
     }
 
     private static void listPastFlights() {
-        System.out.println("\n--- 🕰️ GEÇMİŞ UÇUŞLAR (ARŞİV) ---");
+        System.out.println("\n---  GEÇMİŞ UÇUŞLAR ---");
         List<Flight> flights = flightManager.getPastFlights();
         if (flights.isEmpty()) {
             System.out.println("Geçmiş uçuş kaydı yok.");
             return;
         }
         for (Flight f : flights) {
-            // Geçmiş uçuşlarda boş koltuk sayısının bir önemi yoktur, sadece detay basıyoruz
+           
             System.out.println(f.getFlightDetails());
-            System.out.println("   -> DURUM: TAMAMLANDI");
             System.out.println("------------------------------------------");
         }
     }
@@ -131,7 +130,7 @@ public class Main {
     private static void makeNewReservation() {
         System.out.println("\n---  REZERVASYON YAP ---");
         
-        // 1. Uçuş Seçimi
+        //Uçuş Seçimi
         System.out.print("Uçuş Numarasını Girin (Örn: TK101): ");
         String flightNum = scanner.nextLine().trim();
         
@@ -145,14 +144,14 @@ public class Main {
             return;
         }
 
-        // 2. Koltuk Durumunu Göster ve Seçim Yap
+        //Koltuk Durumunu Göster ve Seçim Yap
         System.out.println("Seçilen Uçuş: " + selectedFlight.getRoute().getDeparturePlace() + " -> " + selectedFlight.getRoute().getArrivalPlace());
         System.out.print("İstenen Koltuk No (Örn: 1A, 2B): ");
         String seatNum = scanner.nextLine().trim().toUpperCase();
 
         Seat selectedSeat = selectedFlight.getPlane().getSeat(seatNum);
         
-        // Validasyonlar
+        
         if (selectedSeat == null) {
             System.out.println("HATA: Böyle bir koltuk numarası yok.");
             return;
@@ -162,26 +161,26 @@ public class Main {
             return;
         }
 
-        // 3. Yolcu Bilgileri
+        //Yolcu Bilgileri
         System.out.print("Yolcu Adı: ");
         String name = scanner.nextLine();
         System.out.print("Yolcu Soyadı: ");
         String surname = scanner.nextLine();
-        System.out.print("TC/Pasaport No: ");
+        System.out.print("TC/Pasaport No: ");//Bunu guide direkt istemiyoruz sadece id gerekli oldugu için alıyoruz.
         String id = scanner.nextLine();
         System.out.print("İletişim (Tel/Email): ");
         String contact = scanner.nextLine();
 
         Passenger passenger = new Passenger(id, name, surname, contact);
 
-        // 4. Rezervasyonu Gerçekleştir
+        //Rezervasyon kısmı
         Reservation res = reservationManager.makeReservation(selectedFlight, passenger, selectedSeat);
 
         if (res != null) {
-            // ÖNEMLİ: Koltuk durumu değiştiği için Uçuş Dosyasını güncelle!
+            //uçuş değişince flights.dat dosyasını da güncelliyoruz ekstra
             flightManager.updateFlight(selectedFlight);
 
-            // 5. Fiyat Hesapla ve Bileti Bas
+            //Fiyat Hesapla ve Bileti Bas
             System.out.print("Bagaj var mı? (E/H): ");
             String bagajSecim = scanner.nextLine();
             boolean hasBaggage = bagajSecim.equalsIgnoreCase("E");
@@ -189,7 +188,7 @@ public class Main {
             CalculatePrice calculator = new CalculatePrice();
             double price = calculator.calculate(selectedSeat.getSeatClass(), hasBaggage);
             
-            // Bileti Oluştur
+            //Bileti Oluştur
             Ticket ticket = new Ticket("BLT-" + res.getReservationCode(), res, price, hasBaggage ? 20.0 : 8.0);
             
             System.out.println("\n İŞLEM BAŞARILI! BİLETİNİZ HAZIR:");
@@ -204,7 +203,7 @@ public class Main {
         System.out.print("İptal edilecek uçuşun numarası (Örn: TK586): ");
         String code = scanner.nextLine().trim();
 
-        // 1. Önce rezervasyon nesnesini bulalım (Detaylara ihtiyacımız var)
+        
         System.out.print("Yolcu TC/Pasaport No Girin: ");
         String passengerID = scanner.nextLine().trim();
 
@@ -227,7 +226,7 @@ public class Main {
             return;
         }
 
-        // 4. Perform Cancellation
+        
         boolean success = reservationManager.cancelReservation(targetRes.getReservationCode(), flightManager);
 
         if (success) {
@@ -251,11 +250,11 @@ public class Main {
     }
     
     private static void generateReportAsync() {
-        // Create the task using the ReportGenerator class
+        
         ReportGenerator task = new ReportGenerator(flightManager);
         
-        // Run it in a separate thread so it doesn't block the main menu
-        Thread thread = new Thread(task);
+        
+        Thread thread = new Thread(task);//ayrı bir thread'de gerceklestiriyoruz gui donmasın diye
         thread.start();
         
         System.out.println(">> (Main Thread) Rapor isteği alındı. Siz menüyü kullanmaya devam edebilirsiniz.");
@@ -273,7 +272,7 @@ public class Main {
         System.out.print("Varış Yeri: ");
         String arr = scanner.nextLine();
         
-        // --- Tarih kontrolu (sadece takvimde var olan tarihler girilebiliyor) ---
+        //sadece takvimde var olan tarihler girilebiliyor
         String date = "";
         boolean validDate = false;
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-uuuu").withResolverStyle(ResolverStyle.STRICT);
@@ -292,19 +291,19 @@ public class Main {
             }
         }
 
-        // 1. Uçuş Saati (Opsiyonel olarak eklendi, boş kalmasın diye)
+        //Uçuş Saati
         System.out.print("Uçuş Saati (Örn: 14:30): ");
         String hour = scanner.nextLine();
 
-        // 2. Uçuş Süresi
+        //Uçuş Süresi
         System.out.print("Uçuş Süresi (Örn: 2h 30m): ");
         String duration = scanner.nextLine();
 
-        // 3. Uçak Modeli
+        //Uçak Modeli
         System.out.print("Uçak Modeli (Örn: Boeing 737, Airbus A320): ");
         String planeModel = scanner.nextLine();
 
-        // 4. Kapasite (Sayı kontrolü yaparak)
+        //Kapasite (Sayı kontrolü yaparak)
         int capacity = 0;
         boolean validCap = false;
         while (!validCap) {
@@ -320,11 +319,11 @@ public class Main {
                 System.out.println("Lütfen geçerli bir sayı giriniz!");
             }
         }
-        // Verilen girdilere gore ucagin olusturulmasi 
+        //Verilen girdilere gore ucagin olusturulmasi 
         Plane p = new Plane("PL-" + new Random().nextInt(10000), planeModel, capacity);    
         Route r = new Route(dep, arr, "GENEL");
         
-        // Girilen bilgilerle uçuşu oluşturuyoruz
+        //Girilen bilgilerle uçuşu oluşturuzyor
         Flight f = new Flight(fNum, r, date, hour, duration, p);
     
         flightManager.addFlight(f);

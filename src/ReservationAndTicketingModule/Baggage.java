@@ -2,36 +2,28 @@ package ReservationAndTicketingModule;
 import java.io.Serializable;
 
 public class Baggage implements Serializable {
-    // Attributes (UML'den - Kaynak: 12)
+    
     private double weight;
-    private String ticketID; // UML'de Ticket ile ilişki kurmak için eklemiştik
+    private String ticketID; //UML'de Ticket ile ilişki kurmak için eklemiştik
 
-    // Constructor
+    
     public Baggage(double weight, String ticketID) {
         this.weight = weight;
         this.ticketID = ticketID;
     }
     
-    // Methods
-    /**
-     * Bagajın verilen hakkı (allowance) aşıp aşmadığını kontrol eder.
-     * @param allowance Biletin tanıdığı hak (örn: 20kg)
-     * @return Limit dahilindeyse true, aşıyorsa false döner.
-     */
+    
     public boolean checkWeightLimit(double allowance) {
-        // if-else yerine mantıksal ifadeyi doğrudan döndürmek daha temizdir
-        return weight <= allowance;
+        return weight <= allowance;//if elsesiz kullanım zaten bool döndürüyorz
     }
     
-    /**
-     * Terminalde test ederken bagaj bilgisini görmek için.
-     */
+    
     @Override
     public String toString() {
         return String.format("Bagaj: %.1f kg [Bilet ID: %s]", weight, ticketID);
     }
     
-    // --- GETTER & SETTER METODLARI ---
+    
 
     public double getWeight() {
         return weight;

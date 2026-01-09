@@ -8,7 +8,7 @@ public class Ticket implements Serializable {
     private double price;
     private double baggageAllowance;
     
-    // Constructor
+    
     public Ticket(String ticketID, Reservation reservation, double price, double baggageAllowance) {
         this.ticketID = ticketID;
         this.reservation = reservation;
@@ -16,13 +16,13 @@ public class Ticket implements Serializable {
         this.baggageAllowance = baggageAllowance;
     }
     
-    // Methods
+    
     public String printTicket() {
         String passengerName = "Bilinmiyor";
         String flightNum = "Bilinmiyor";
         String seatNum = "Yok";
 
-        // Null check yaparak rezervasyon detaylarını çekiyoruz
+        
         if (reservation != null) {
             if (reservation.getPassenger() != null) {
                 passengerName = reservation.getPassenger().getName() + " " + reservation.getPassenger().getSurname();
@@ -50,15 +50,13 @@ public class Ticket implements Serializable {
         );
     }
 
-    /**
-     * Terminalde liste halinde görürken kısa özet geçmek için.
-     */
+    
     @Override
     public String toString() {
         return "Bilet (" + ticketID + ") - Fiyat: " + price + " TL";
     }
 
-    // --- GETTER & SETTER METODLARI ---
+   
 
     public String getTicketID() {
         return ticketID;

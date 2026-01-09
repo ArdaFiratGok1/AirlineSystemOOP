@@ -10,31 +10,26 @@ public class Plane implements Serializable {
     private int capacity;
     private int maxCapacity;
     
-    // DEĞİŞİKLİK: Matris yerine Map kullanıyoruz.
-    // Key: "1A" (Koltuk No), Value: Seat Nesnesi
+    
     private Map<String, Seat> seats; 
 
     public Plane(String planeID, String planeModel, int maxCapacity) {
         this.planeID = planeID;
         this.planeModel = planeModel;
         this.maxCapacity = maxCapacity;
-        int targetCapacity = (maxCapacity * 90) / 100;
+        int targetCapacity = (maxCapacity * 90) / 100;//burada direkt tüm kapasiteyi girmek yerine 90'ı aktiflesiyor sonra istersek yükseltsin admin diye
         int rows = targetCapacity / 6;
         this.capacity = rows * 6;
-        this.seats = new HashMap<>(); // Boş harita oluşturuluyor
+        this.seats = new HashMap<>(); //bos mape atıyoruz önce
   
         // Constructor çalıştığında koltukları dolduruyoruz
         initializeSeats(rows);  //CONSTRUCTERA MAXCAPACITY EKLEYIP ONUN %90INI CAPACITYE ATAYIP KAPASITE DOLDUKTAN SONRA KALAN BOS YERLERI ZAMLI FIYATTAN SATABILIRIZ
 
     }
 
-    /**
-     * Döküman Kaynak 9 ve 15.
-     * Koltukları oluşturup Map'e ekler.
-     */
+    
     public void initializeSeats(int rowNum) {           
-        // Dökümanda 30 sıra ve 6 sütun (A-F) örneği verilmişti.
-        // Ancak Map kullandığımız için ileride burası dinamik parametre de alabilir.
+        
         char[] colLetters = {'A', 'B', 'C', 'D', 'E', 'F'};
         int r, col;
         int businessRowLimit = (rowNum * 15) / 100;
@@ -49,7 +44,7 @@ public class Plane implements Serializable {
 
                 Seat seat = new Seat(seatNum, type, price);
                 
-                // Matris yerine Map'e "put" işlemi yapıyoruz
+                // Matris yerine Map'e put işlemi yapıyoruz
                 seats.put(seatNum, seat);
             }
         }
@@ -76,14 +71,12 @@ public class Plane implements Serializable {
 		this.seats = seats;
 	}
 
-	/**
-     * Array döngüsü yerine doğrudan Key ile erişim. Çok daha hızlıdır.
-     */
+	
     public Seat getSeat(String seatNum) {
-        return seats.get(seatNum); // Varsa döner, yoksa null döner
+        return seats.get(seatNum); 
     }
     
-    // Map'i döndüren getter (Manager'lar için lazım olacak)
+    //Map'i döndüren getter (Managerlar için lazım olacak)
     public Map<String, Seat> getSeats() { return seats; }
     
     public String getPlaneID() { return planeID; }
