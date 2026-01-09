@@ -17,8 +17,8 @@ public class ReservationManager {
 
     @SuppressWarnings("unchecked")
     public ReservationManager() {
-        // 1. Program başlarken eski rezervasyonları yükle
-        Object data = FileManager.loadData(FILE_NAME);
+    	// once gecmis dosyayi yukle 
+    	Object data = FileManager.loadData(FILE_NAME);
         
         if (data != null) {
             this.reservations = (List<Reservation>) data;
@@ -35,41 +35,24 @@ public class ReservationManager {
                 return res;
             }
         }
-        return null; // Not found
+        return null; 
     }
 
-    /**
-     * Yeni bir rezervasyon oluşturur, koltuğu kapatır ve dosyaya kaydeder.
-     */
-    
-    /**
-     * Uçuş bilgileri (ID, Saat, Tarih vs.) değiştiğinde,
-     * bu uçuştur yapılmış tüm rezervasyonları da günceller.
-     * * @param oldFlightNum - Uçuşun eski numarası (Rezervasyonları bulmak için)
-     * @param newFlightData - Yeni uçuş nesnesi (Güncellemek için)
-     */
+    // yeni bir rezervasyon olusturur, koltugu kapatir ve dosyaya kaydeder
     public void updateFlightInfoInReservations(String oldFlightNum, Flight newFlightData) {
         boolean updated = false;
         
         for (Reservation res : reservations) {
-            // Rezervasyondaki uçuşun numarası, değiştirilen uçuşun eski numarasıyla eşleşiyor mu?
-            if (res.getFlight().getFlightNum().equals(oldFlightNum)) {
-                
-                // Eşleşiyorsa, rezervasyonun içindeki Flight nesnesini yenisiyle değiştir
+
+        	if (res.getFlight().getFlightNum().equals(oldFlightNum)) 
+        	{
                 res.setFlight(newFlightData);
-                
-                // Eğer koltuk nesnesi de Flight'a bağlıysa, onu da yeni uçaktan çekmek gerekebilir.
-                // Ancak basitlik adına Flight nesnesini değiştirmek genelde yeterlidir (tarih/saat için).
-                // Daha gelişmiş versiyonda koltuk referansını da yenileyebilirsin:
-                // Seat newSeat = newFlightData.getPlane().getSeat(res.getSeat().getSeatNum());
-                // res.setSeat(newSeat);
-                
                 updated = true;
             }
         }
 
         if (updated) {
-            FileManager.saveData(FILE_NAME, this.reservations); // Dosyayı kaydet
+            FileManager.saveData(FILE_NAME, this.reservations); // Dosyayi kaydet
             System.out.println("İlgili rezervasyonlar yeni uçuş bilgileriyle güncellendi.");
         }
     }
@@ -79,72 +62,55 @@ public class ReservationManager {
             System.out.println("Hata: Seçilen koltuk (" + s.getSeatNum() + ") zaten dolu!");
             return null;
         }
-
-        // 2. Rezervasyon Kodu Üret (Örn: REZ-4821)
+        // rastgele rezervasyon kodu uretme
         String resCode = "REZ-" + (1000 + new Random().nextInt(9000));
         
-        // 3. Tarih Al (Bugün)
+        // tarih
         String date = LocalDate.now().format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
-
-        // 4. Nesneyi Oluştur
-        Reservation newRes = new Reservation(resCode, f, p, s, date);
-        
-        // 5. Koltuğu "DOLU" olarak işaretle (Kritik Adım)
+        // rezervasyon yapilmasi
+        Reservation newRes = new Reservation(resCode, f, p, s, date);       
+        // koltugu dolu olarak isaretleme
         s.setReserveStatus(true);
-
-        // 6. Listeye Ekle ve Kaydet
+        // listeye ekle
         reservations.add(newRes);
         FileManager.saveData(FILE_NAME, this.reservations);
-        
         System.out.println("Rezervasyon Başarılı: " + resCode);
         return newRes;
     }
-
-    /**
-     * Rezervasyon koduna göre iptal işlemi yapar ve koltuğu boşa çıkarır.
-     */
+    
     public boolean cancelReservation(String resCode, FlightManager flightManager) {
         for (Reservation res : reservations) {
             if (res.getReservationCode().equals(resCode)) {
-                // 1. Rezervasyonu pasif yap
+                //  dolu yapar
                 res.setActive(false);
-                
-                // 2. KOLTUĞU BOŞA ÇIKAR (Kritik Kısım Burası!)
-                // Rezervasyonun içindeki uçuş/koltuk bilgisi eski olabilir.
-                // Bu yüzden FlightManager'dan güncel "Master" veriyi çekiyoruz.
+                // rezervasyonun icinde ucus/koltuk bilgisi eski olabilir.
+                // bu yüzden FlightManager'dan güncel "Master" veriyi çekiyoruz.
                 String flightNum = res.getFlight().getFlightNum();
                 String seatNum = res.getSeat().getSeatNum();
-                
                 Flight masterFlight = flightManager.getFlightByNum(flightNum);
-                if (masterFlight != null) {
+                if (masterFlight != null) 
+                {
                     Seat masterSeat = masterFlight.getPlane().getSeat(seatNum);
-                    if (masterSeat != null) {
-                        masterSeat.setReserveStatus(false); // Koltuğu BOŞ yap
-                        
-                        // Uçuş dosyasını güncelle (flights.dat güncellenir)
+                    if (masterSeat != null)
+                    {
+                        masterSeat.setReserveStatus(false); // Koltugu BOS yap
+                        // Ucus dosyasini guncelle (flights.dat güncellenir)
                         flightManager.updateFlight(masterFlight); 
                         System.out.println("Koltuk boşa çıkarıldı: " + seatNum);
                     }
                 }
                 
-                // 3. Rezervasyon dosyasını kaydet
                 FileManager.saveData(FILE_NAME, this.reservations);
                 return true;
             }
         }
         return false;
     }
-    
-    /**
-     * Tüm rezervasyonları döndürür.
-     */
+   
     public List<Reservation> getAllReservations() {
         return reservations;
     }
     
-    /**
-     * Belirli bir uçuşa ait rezervasyonları bulur (Raporlama için).
-     */
     public List<Reservation> getReservationsByFlight(String flightNum) {
         List<Reservation> flightRes = new ArrayList<>();
         for (Reservation r : reservations) {
