@@ -3,12 +3,16 @@ package GUIModule;
 import com.formdev.flatlaf.FlatLightLaf;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
 import java.util.Map;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 
 import FlightManagementModule.Flight;
 import FlightManagementModule.Seat;
@@ -33,6 +37,9 @@ public class PassengerDashboardGUI extends JFrame {
     private JTextField txtSeatSelect;
     private JCheckBox chkBaggage;
     private JComboBox<String> cmbFlightFilter;
+    
+    // Fiyat Göstergesi
+    private JLabel lblTotalPrice;
 
     public PassengerDashboardGUI(User user) {
         this.currentUser = user;
@@ -44,9 +51,11 @@ public class PassengerDashboardGUI extends JFrame {
         setupTheme();
 
         setTitle("✈️ Yolcu Paneli - Hoşgeldiniz, " + user.getUsername());
-        setSize(1000, 700);
+        setSize(1050, 750); 
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
+        // Minimum boyut ekleyelim ki çok küçültülürse bozulmasın
+        setMinimumSize(new Dimension(800, 600));
 
         JPanel mainPanel = new JPanel(new BorderLayout());
         setContentPane(mainPanel);
@@ -103,6 +112,9 @@ public class PassengerDashboardGUI extends JFrame {
             UIManager.put("Table.showVerticalLines", false);
             UIManager.put("Table.selectionBackground", new Color(52, 152, 219));
             UIManager.put("Table.selectionForeground", Color.WHITE);
+            // Scrollbar genişliği ve hissi
+            UIManager.put("ScrollBar.width", 12);
+            UIManager.put("ScrollBar.thumbArc", 999);
         } catch (Exception e) {}
     }
 
@@ -133,23 +145,18 @@ public class PassengerDashboardGUI extends JFrame {
             public boolean isCellEditable(int row, int col) { return false; }
         };
         
-        // JTable Özelleştirme
         JTable table = new JTable(flightTableModel) {
-            // ÖZELLİK 1: Satır Renklendirme (Pale/Soluk Yapma)
             @Override
             public Component prepareRenderer(javax.swing.table.TableCellRenderer renderer, int row, int column) {
                 Component c = super.prepareRenderer(renderer, row, column);
-                
-                // Modeldeki asıl satır indeksini bul (Filtreleme varsa kaymasın diye)
                 int modelRow = convertRowIndexToModel(row);
                 String dateStr = (String) getModel().getValueAt(modelRow, 2);
                 String timeStr = (String) getModel().getValueAt(modelRow, 3);
 
                 if (isExpired(dateStr, timeStr)) {
-                    c.setForeground(Color.LIGHT_GRAY); // Soluk Gri Yazı
-                    c.setBackground(Color.WHITE);      // Arka plan Beyaz kalsın
+                    c.setForeground(Color.LIGHT_GRAY); 
+                    c.setBackground(Color.WHITE);      
                 } else {
-                    // Normal satır renkleri
                     if (isRowSelected(row)) {
                         c.setForeground(getSelectionForeground());
                         c.setBackground(getSelectionBackground());
@@ -162,23 +169,16 @@ public class PassengerDashboardGUI extends JFrame {
             }
         };
 
-        // ÖZELLİK 2: Tıklamayı Engelleme (Unclickable)
-        // Kullanıcı soluk satıra tıklarsa, seçim işlemini iptal ediyoruz.
+        // Tablo Ayarları
         table.setSelectionModel(new DefaultListSelectionModel() {
             @Override
             public void setSelectionInterval(int index0, int index1) {
-                // Tıklanan satırın tarihini kontrol et
-                if (index0 == index1) { // Tekli seçim
-                    // Görünüm indeksini Model indeksine çevir
+                if (index0 == index1) { 
                     if (index0 < table.getRowCount()) {
                         int modelRow = table.convertRowIndexToModel(index0);
                         String dateStr = (String) flightTableModel.getValueAt(modelRow, 2);
                         String timeStr = (String) flightTableModel.getValueAt(modelRow, 3);
-                        
-                        // Eğer süresi geçmişse SEÇME!
-                        if (isExpired(dateStr, timeStr)) {
-                            return; 
-                        }
+                        if (isExpired(dateStr, timeStr)) { return; }
                     }
                 }
                 super.setSelectionInterval(index0, index1);
@@ -187,16 +187,21 @@ public class PassengerDashboardGUI extends JFrame {
 
         table.setFillsViewportHeight(true);
         table.setShowGrid(false);
-        
         table.getColumnModel().getColumn(0).setPreferredWidth(70);
         table.getColumnModel().getColumn(4).setPreferredWidth(50);
         table.getColumnModel().getColumn(6).setPreferredWidth(80);
 
         loadFlights(); 
 
-        panel.add(new JScrollPane(table), BorderLayout.CENTER);
+        // --- SCROLL PANE AYARLARI (Scroll Çubuğu Eklendi) ---
+        JScrollPane scrollPane = new JScrollPane(table);
+        // Veri az olsa bile scroll bar yolunu göster (Kullanıcı özelliğin var olduğunu anlasın)
+        scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+        scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
         
-        // --- OLAYLAR (LISTENERS) ---
+        panel.add(scrollPane, BorderLayout.CENTER);
+        
+        // --- OLAYLAR ---
         cmbFlightFilter.addActionListener(e -> {
             loadFlights(); 
             txtSearch.setText(""); 
@@ -215,7 +220,7 @@ public class PassengerDashboardGUI extends JFrame {
             }
         });
 
-        // --- ALT PANEL (SATIN ALMA) ---
+        // --- ALT PANEL (SATIN ALMA & FİYAT) ---
         JPanel bottomPanel = new JPanel(new GridBagLayout());
         bottomPanel.setBackground(new Color(235, 245, 251)); 
         bottomPanel.setBorder(BorderFactory.createTitledBorder(
@@ -230,6 +235,11 @@ public class PassengerDashboardGUI extends JFrame {
         chkBaggage = new JCheckBox("Ekstra Bagaj (+500 TL)");
         chkBaggage.setOpaque(false);
         
+        // Fiyat Etiketi
+        lblTotalPrice = new JLabel("Toplam Tutar: 0 TL");
+        lblTotalPrice.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        lblTotalPrice.setForeground(new Color(44, 62, 80));
+        
         JButton btnShowSeats = new JButton("👁️ Koltuk Durumlarını Gör");
         btnShowSeats.setBackground(new Color(241, 196, 15)); 
         btnShowSeats.setForeground(Color.BLACK);
@@ -239,6 +249,7 @@ public class PassengerDashboardGUI extends JFrame {
         btnBook.setForeground(Color.WHITE);
         btnBook.setFont(new Font("Segoe UI", Font.BOLD, 13));
 
+        // 1. Satır
         gbc.gridx = 0; gbc.gridy = 0;
         bottomPanel.add(new JLabel("İstenen Koltuk (Örn: 1A):"), gbc);
         
@@ -247,16 +258,30 @@ public class PassengerDashboardGUI extends JFrame {
         
         gbc.gridx = 2;
         bottomPanel.add(btnShowSeats, gbc);
-
+        
+        // 2. Satır
         gbc.gridx = 0; gbc.gridy = 1;
         bottomPanel.add(chkBaggage, gbc);
         
-        gbc.gridx = 1; gbc.gridwidth = 2;
+        gbc.gridx = 1; gbc.gridwidth = 2; // Fiyatı sağa koyalım
+        bottomPanel.add(lblTotalPrice, gbc);
+        
+        // 3. Satır (Buton)
+        gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 3;
+        gbc.insets = new Insets(15, 10, 10, 10); // Biraz boşluk
         bottomPanel.add(btnBook, gbc);
 
         panel.add(bottomPanel, BorderLayout.SOUTH);
 
-        // --- BUTON AKSİYONLARI ---
+        // --- BUTON VE INPUT AKSİYONLARI ---
+        
+        chkBaggage.addActionListener(e -> updatePriceLabel());
+        txtSeatSelect.getDocument().addDocumentListener(new DocumentListener() {
+            public void insertUpdate(DocumentEvent e) { updatePriceLabel(); }
+            public void removeUpdate(DocumentEvent e) { updatePriceLabel(); }
+            public void changedUpdate(DocumentEvent e) { updatePriceLabel(); }
+        });
+
         btnShowSeats.addActionListener(e -> {
             int selectedRow = table.getSelectedRow();
             if (selectedRow == -1) {
@@ -274,7 +299,6 @@ public class PassengerDashboardGUI extends JFrame {
                 JOptionPane.showMessageDialog(this, "Lütfen tablodan AKTİF bir uçuş seçin!");
                 return;
             }
-            
             int modelRow = table.convertRowIndexToModel(selectedRow);
             String flightNum = (String) flightTableModel.getValueAt(modelRow, 0);
             String seatNum = txtSeatSelect.getText().trim().toUpperCase();
@@ -290,7 +314,7 @@ public class PassengerDashboardGUI extends JFrame {
         JPanel panel = new JPanel(new BorderLayout(15, 15));
         panel.setOpaque(false);
 
-        String[] cols = {"Rezervasyon Kodu", "Uçuş", "Koltuk", "Durum"};
+        String[] cols = {"Rezervasyon Kodu", "Uçuş", "Koltuk", "Tutar", "Durum"};
         resTableModel = new DefaultTableModel(cols, 0);
         JTable table = new JTable(resTableModel);
         table.setFillsViewportHeight(true);
@@ -298,9 +322,13 @@ public class PassengerDashboardGUI extends JFrame {
         
         loadMyReservations();
 
-        panel.add(new JScrollPane(table), BorderLayout.CENTER);
+        // --- SCROLL PANE AYARLARI (Scroll Çubuğu Eklendi) ---
+        JScrollPane scrollPane = new JScrollPane(table);
+        // Burada da scroll her zaman görünür olsun
+        scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+        
+        panel.add(scrollPane, BorderLayout.CENTER);
 
-        // İptal Butonu
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton btnCancel = new JButton("SEÇİLİ REZERVASYONU İPTAL ET");
         btnCancel.setBackground(new Color(231, 76, 60)); // Kırmızı
@@ -310,7 +338,6 @@ public class PassengerDashboardGUI extends JFrame {
         bottomPanel.add(btnCancel);
         panel.add(bottomPanel, BorderLayout.SOUTH);
 
-        // İptal Aksiyonu
         btnCancel.addActionListener(e -> {
             int selectedRow = table.getSelectedRow();
             if (selectedRow == -1) {
@@ -324,101 +351,143 @@ public class PassengerDashboardGUI extends JFrame {
         return panel;
     }
     
-    // --- YENİ ÖZELLİK: GÖRSEL KOLTUK HARİTASI ---
+    // --- GÖRSEL KOLTUK HARİTASI ---
     private void showSeatMap(String flightNum) {
         Flight flight = flightManager.getFlightByNum(flightNum);
         if (flight == null) return;
         
-        // 1. AYARLAR
-        int businessRows = 5; // İlk 5 sıra Business olsun (Sarı)
+        int businessRows = 5; 
+        List<JButton> availableSeatButtons = new ArrayList<>();
         
-        // 2. PANEL YAPISI (7 Sütun: 3 Koltuk + 1 Boşluk + 3 Koltuk)
+        JPanel mainContainer = new JPanel(new BorderLayout());
         JPanel seatPanel = new JPanel(new GridLayout(0, 7, 5, 5)); 
-        seatPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // Kenar boşluğu
+        seatPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); 
         
         Map<String, Seat> seats = flight.getPlane().getSeats();
         int rows = flight.getPlane().getCapacity() / 6; 
         
         for (int i = 1; i <= rows; i++) {
-            // --- SOL TARA (A, B, C) ---
-            addSeatToPanel(seatPanel, i, 'A', seats, businessRows);
-            addSeatToPanel(seatPanel, i, 'B', seats, businessRows);
-            addSeatToPanel(seatPanel, i, 'C', seats, businessRows);
+            addSeatToPanel(seatPanel, i, 'A', seats, businessRows, availableSeatButtons);
+            addSeatToPanel(seatPanel, i, 'B', seats, businessRows, availableSeatButtons);
+            addSeatToPanel(seatPanel, i, 'C', seats, businessRows, availableSeatButtons);
             
-            // --- KORİDOR BOŞLUĞU (Görünmez Panel) ---
             JLabel aisle = new JLabel("", SwingConstants.CENTER);
-            aisle.setPreferredSize(new Dimension(30, 40)); // Boşluk genişliği
-            // İstersen buraya sıra numarasını yazdırabilirsin:
-            // aisle.setText(String.valueOf(i)); 
+            aisle.setPreferredSize(new Dimension(30, 40));
             seatPanel.add(aisle);
             
-            // --- SAĞ TARAF (D, E, F) ---
-            addSeatToPanel(seatPanel, i, 'D', seats, businessRows);
-            addSeatToPanel(seatPanel, i, 'E', seats, businessRows);
-            addSeatToPanel(seatPanel, i, 'F', seats, businessRows);
+            addSeatToPanel(seatPanel, i, 'D', seats, businessRows, availableSeatButtons);
+            addSeatToPanel(seatPanel, i, 'E', seats, businessRows, availableSeatButtons);
+            addSeatToPanel(seatPanel, i, 'F', seats, businessRows, availableSeatButtons);
         }
         
-        // 3. SCROLL PANE (Aşağıyı görebilmek için kaydırma çubuğu)
         JScrollPane scrollPane = new JScrollPane(seatPanel);
-        scrollPane.setPreferredSize(new Dimension(500, 500)); // Pencere boyutu sabitlenir
-        scrollPane.getVerticalScrollBar().setUnitIncrement(16); // Tekerlek hızı artırıldı
-        scrollPane.setBorder(null); // Çerçeve kirliliğini kaldır
+        scrollPane.setPreferredSize(new Dimension(560, 450));
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        scrollPane.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
 
-        // 4. GÖSTER
-        JOptionPane.showMessageDialog(this, scrollPane, flightNum + " Detaylı Koltuk Haritası", JOptionPane.PLAIN_MESSAGE);
+        JPanel legendPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 10));
+        legendPanel.setBackground(new Color(245, 247, 250));
+        legendPanel.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, Color.LIGHT_GRAY));
+        
+        legendPanel.add(createLegendItem(new Color(65, 105, 225), "Business (5.000 TL)"));
+        legendPanel.add(createLegendItem(new Color(46, 204, 113), "Ekonomi (1.000 TL)"));
+        legendPanel.add(createLegendItem(Color.GRAY, "Dolu")); // GRİ
+
+        mainContainer.add(scrollPane, BorderLayout.CENTER);
+        mainContainer.add(legendPanel, BorderLayout.SOUTH);
+
+        JOptionPane.showMessageDialog(this, mainContainer, flightNum + " Koltuk Seçimi", JOptionPane.PLAIN_MESSAGE);
     }
     
-    private void addSeatToPanel(JPanel panel, int row, char col, Map<String, Seat> seats, int businessRowLimit) {
+    private JPanel createLegendItem(Color color, String text) {
+        JPanel item = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        item.setOpaque(false);
+        
+        JPanel colorBox = new JPanel();
+        colorBox.setBackground(color);
+        colorBox.setPreferredSize(new Dimension(15, 15));
+        colorBox.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+        
+        JLabel lbl = new JLabel(text);
+        lbl.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        
+        item.add(colorBox);
+        item.add(lbl);
+        return item;
+    }
+    
+    private void addSeatToPanel(JPanel panel, int row, char col, Map<String, Seat> seats, int businessRowLimit, List<JButton> allButtons) {
         String seatCode = row + "" + col;
         Seat seat = seats.get(seatCode);
         
         JButton seatBtn = new JButton(seatCode);
         seatBtn.setPreferredSize(new Dimension(55, 45));
         seatBtn.setFont(new Font("Segoe UI", Font.BOLD, 11));
-        seatBtn.setFocusPainted(false); // Tıklayınca oluşan çirkin çerçeveyi kaldır
+        seatBtn.setFocusPainted(false);
         
         if (seat != null && seat.isReserved()) {
-            // --- DOLU KOLTUK (Kırmızı) ---
-            seatBtn.setBackground(new Color(231, 76, 60)); 
+            seatBtn.setBackground(Color.GRAY); 
             seatBtn.setForeground(Color.WHITE);
-            seatBtn.setEnabled(false); // Tıklanamaz
+            seatBtn.setEnabled(false);
         } else {
-            // --- BOŞ KOLTUK ---
             if (row <= businessRowLimit) {
-                // BUSINESS (Sarı)
-                seatBtn.setBackground(new Color(241, 196, 15)); // Altın Sarısı
-                seatBtn.setForeground(Color.BLACK);
-                seatBtn.setToolTipText("Business Class");
-            } else {
-                // EKONOMİ (Yeşil)
-                seatBtn.setBackground(new Color(46, 204, 113)); // Zümrüt Yeşili
+                seatBtn.setBackground(new Color(65, 105, 225)); 
                 seatBtn.setForeground(Color.WHITE);
-                seatBtn.setToolTipText("Economy Class");
+                seatBtn.setToolTipText("Business Class - 5.000 TL"); 
+            } else {
+                seatBtn.setBackground(new Color(46, 204, 113));
+                seatBtn.setForeground(Color.WHITE);
+                seatBtn.setToolTipText("Economy Class - 1.000 TL");
             }
             
-            // Tıklayınca kutuya yazma aksiyonu
-            seatBtn.addActionListener(e -> txtSeatSelect.setText(seatCode));
+            allButtons.add(seatBtn);
+            
+            seatBtn.addActionListener(e -> {
+                for (JButton btn : allButtons) {
+                    btn.setBorder(UIManager.getBorder("Button.border"));
+                }
+                seatBtn.setBorder(BorderFactory.createLineBorder(Color.ORANGE, 3));
+                txtSeatSelect.setText(seatCode);
+            });
         }
         panel.add(seatBtn);
     }
 
-    // --- MANTIK METODLARI (ESKİ KODUN AYNISI) ---
+    // --- YARDIMCI METODLAR ---
+    private void updatePriceLabel() {
+        String seatNum = txtSeatSelect.getText().trim().toUpperCase();
+        long price = 0;
+        
+        if (!seatNum.isEmpty()) {
+            try {
+                String rowStr = seatNum.replaceAll("[^0-9]", ""); 
+                if (!rowStr.isEmpty()) {
+                    int row = Integer.parseInt(rowStr);
+                    if (row <= 5) price = 5000;
+                    else price = 1500;
+                }
+            } catch (NumberFormatException e) {}
+        }
+        
+        if (chkBaggage.isSelected() && price > 0) {
+            price += 500;
+        }
+        
+        lblTotalPrice.setText("Toplam Tutar: " + price + " TL");
+        if (price > 0) lblTotalPrice.setForeground(new Color(39, 174, 96));
+        else lblTotalPrice.setForeground(new Color(44, 62, 80));
+    }
 
     private void loadFlights() {
         flightTableModel.setRowCount(0);
-        
-        // ComboBox henüz oluşturulmadıysa (Constructor aşaması) varsayılan olarak Aktifleri getir
         String selectedFilter = (cmbFlightFilter != null) ? (String) cmbFlightFilter.getSelectedItem() : "Aktif Uçuşlar";
-        
         java.util.List<Flight> flightsToShow;
 
-        // Seçime göre hangi listeyi çekeceğimize karar veriyoruz
         if (selectedFilter.contains("Geçmiş")) {
             flightsToShow = flightManager.getPastFlights();
         } else if (selectedFilter.contains("Tüm")) {
             flightsToShow = flightManager.getAllFlights();
         } else {
-            // Varsayılan: Aktif Uçuşlar
             flightsToShow = flightManager.getActiveFlights();
         }
 
@@ -429,7 +498,7 @@ public class PassengerDashboardGUI extends JFrame {
                 f.getRoute().getDeparturePlace() + " -> " + f.getRoute().getArrivalPlace(),
                 f.getDate(),
                 f.getTime(),
-                f.getDuration(), // Süre eklendi
+                f.getDuration(), 
                 f.getPlane().getPlaneModel(),
                 empty + " / " + f.getPlane().getCapacity()
             };
@@ -440,12 +509,22 @@ public class PassengerDashboardGUI extends JFrame {
     private void loadMyReservations() {
         resTableModel.setRowCount(0);
         for (Reservation r : resManager.getAllReservations()) {
-            // İsim eşleşmesi (Basit yöntem)
             if (r.getPassenger().getName().equalsIgnoreCase(currentUser.getUsername())) {
+                long price = 0;
+                String seatNum = (r.getSeat() != null) ? r.getSeat().getSeatNum() : "";
+                if (!seatNum.isEmpty()) {
+                    try {
+                        String rowStr = seatNum.replaceAll("[^0-9]", "");
+                        int row = Integer.parseInt(rowStr);
+                        price = (row <= 5) ? 5000 : 1000;
+                    } catch(Exception e){}
+                }
+
                 Object[] row = {
                     r.getReservationCode(),
                     r.getFlight().getFlightNum(),
-                    (r.getSeat() != null ? r.getSeat().getSeatNum() : "Yok"),
+                    seatNum,
+                    price + " TL",
                     (r.isActive() ? "AKTİF" : "İPTAL")
                 };
                 resTableModel.addRow(row);
@@ -481,6 +560,8 @@ public class PassengerDashboardGUI extends JFrame {
                 JOptionPane.showMessageDialog(this, "Rezervasyon Başarılı! Koltuk: " + seatNum);
                 loadFlights();
                 loadMyReservations();
+                txtSeatSelect.setText(""); 
+                chkBaggage.setSelected(false);
             } else {
                 JOptionPane.showMessageDialog(this, "Rezervasyon oluşturulamadı (Manager Hatası).");
             }
@@ -500,20 +581,16 @@ public class PassengerDashboardGUI extends JFrame {
             LocalDateTime flightTime = LocalDateTime.parse(dt, formatter);
             return flightTime.isBefore(LocalDateTime.now());
         } catch (Exception e) {
-            return false; // Hata varsa aktif varsayalım
+            return false; 
         }
     }
     
     private void handleCancel(String resCode) {
-        // ARTIK BURAYA "flightManager" NESNESİNİ DE GÖNDERİYORUZ:
         boolean success = resManager.cancelReservation(resCode, flightManager);
-        
         if (success) {
             JOptionPane.showMessageDialog(this, "Rezervasyon iptal edildi ve koltuk boşa çıkarıldı.");
-            
-            // Listeleri Yenile
-            loadMyReservations(); // Durum "İPTAL" olacak
-            loadFlights();        // Boş koltuk sayısı 1 artacak
+            loadMyReservations(); 
+            loadFlights();        
         } else {
             JOptionPane.showMessageDialog(this, "İptal işlemi başarısız oldu.");
         }
